@@ -8,6 +8,8 @@ jobs:
   build:
     name: Build binaries
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     # Only build releases cut from main
     if: github.event.release.target_commitish == 'main'
