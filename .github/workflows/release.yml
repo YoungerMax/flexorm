@@ -40,6 +40,7 @@ jobs:
 
       # Ensure all modules in the go.work workspace have deps resolved
       - name: Sync workspace dependencies
+        working-directory: src/
         run: |
           go work sync
           go mod download all
