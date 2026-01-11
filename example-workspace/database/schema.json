@@ -1,0 +1,51 @@
+{
+    "tables": [
+        {
+            "name": "users",
+            "columns": [
+                {
+                    "name": "id",
+                    "primaryKey": true,
+                    "type": "integer",
+                    "default": "autoincrement"
+                },
+                {
+                    "name": "name",
+                    "type": "text",
+                    "maxLength": 64,
+                    "pattern": "/^[a-z]+$/i"
+                },
+                {
+                    "name": "created",
+                    "type": "timestamp",
+                    "default": "now"
+                },
+                {
+                    "name": "is_admin",
+                    "type": "boolean"
+                }
+            ]
+        },
+        {
+            "name": "posts",
+            "columns": [
+                {
+                    "name": "id",
+                    "primaryKey": true,
+                    "type": "integer",
+                    "default": "autoincrement"
+                },
+                {
+                    "name": "created",
+                    "type": "timestamp",
+                    "default": "now"
+                },
+                {
+                    "name": "text",
+                    "type": "text",
+                    "maxLength": 256
+                }
+            ]
+        }
+    ]
+}

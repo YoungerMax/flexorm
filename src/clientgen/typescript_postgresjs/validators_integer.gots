@@ -1,0 +1,14 @@
+{{if or .IsAutoIncrement .HasDefault}}
+        if (obj.{{.ColName}} !== undefined && obj.{{.ColName}} !== null) {
+            if (!Number.isInteger(obj.{{.ColName}})) {
+                throw new Error("{{.ColName}} must be an integer");
+            }
+        }
+{{else}}
+        if (obj.{{.ColName}} === undefined || obj.{{.ColName}} === null) {
+            throw new Error("{{.ColName}} is required");
+        }
+        if (!Number.isInteger(obj.{{.ColName}})) {
+            throw new Error("{{.ColName}} must be an integer");
+        }
+{{end}}
