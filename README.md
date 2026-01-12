@@ -1,6 +1,6 @@
 # 🌌 FlexORM
 
-**FlexORM** is an **all-in-one database toolkit** that helps you (1) **query your database in any programming language**, (2) **create and run migrations**, and (3) **view your data in a web browser**. It is a **single executable** called `flexorm`.
+**FlexORM** is an **all-in-one database toolkit** that helps you (1) **work with your database in any programming language**, (2) **create and run migrations**, and (3) **view your data in a web browser**. It is a **single executable** called `flexorm`.
 
 **⚠️ FlexORM is currently experimental, unstable software undergoing heavily development - it is not (yet) intended for production use cases.**
 
@@ -41,19 +41,84 @@
 
 | Feature                   | FlexORM | Prisma | TypeORM | Sequelize | SQLAlchemy | Diesel | Drizzle |
 | ------------------------- | ------- | ------ | ------- | --------- | ---------- | ------ | ------- |
+| Schema-first              | ✅       | ✅      | ❌       | ❌         | ❌          | ❌      | ❌       |
 | Multi-language support    | ✅       | ❌      | ❌       | ❌         | ❌          | ❌      | ❌       |
 | Zero runtime overhead     | ✅       | ❌      | ❌       | ❌         | ❌          | ✅      | ✅       |
 | Auto migration generation | ✅       | ✅      | ✅       | ✅         | ✅          | ❌      | ✅       |
 | Simple JSON schema        | ✅       | ❌      | ❌       | ❌         | ❌          | ❌      | ❌       |
 | Built-in validation       | ✅       | ✅      | ✅       | ✅         | ❌          | ❌      | ⚠️       |
 | Type-safe queries         | ✅       | ✅      | ✅       | ❌         | ❌          | ✅      | ✅       |
-| No heavy engine/runtime   | ✅       | ❌      | ✅       | ✅         | ✅          | ✅      | ✅       |
+| No heavy backend          | ✅       | ❌      | ✅       | ✅         | ✅          | ✅      | ✅       |
 | Client code generation    | ✅       | ✅      | ❌       | ❌         | ❌          | ❌      | ❌       |
 
 ## 🚀 Roadmap
+
+### v0.1.0
+- [X] clientgen base
+  - [X] Add select method to client
+  - [X] Add insert method to client
+- [X] migrate base
+  - [X] Generate simple migrations automatically
+  - [X] Migrate up and down
+- [X] cli base
+  - [X] generate command
+  - [X] migrations up/down/create commands
+  - [X] studio command
+- [X] studio base
+  - [X] view data in a table
+
+### v0.2.0
+- [ ] Add update method to client
+- [ ] Add delete method to client
+- [ ] Ensure select, update, insert, delete methods will allow for subqueries later on in development 
+- [ ] Add joins
+  - [ ] inner join
+  - [ ] left join
+  - [ ] right join
+  - [ ] full join
+
+### v0.3.0
+- [ ] Add more column types
+  - [ ] smallint
+  - [ ] bigint
+  - [ ] serial
+  - [ ] smallserial
+  - [ ] bigserial
+  - [ ] boolean
+  - [ ] varchar
+  - [ ] char
+  - [ ] numeric
+  - [ ] real
+  - [ ] double precision
+  - [ ] json
+  - [ ] jsonb
+  - [ ] uuid
+  - [ ] time
+  - [ ] date
+  - [ ] interval
+  - [ ] point
+  - [ ] line
+  - [ ] enum
+
+### v0.4.0
+- [ ] Add more column types
+  - [ ] email (custom)
+  - [ ] phone number (custom)
+  - [ ] vector (pgvector)
+- [ ] Add constraints
+  - [ ] nullable (default nullable = false)
+  - [ ] unique (default unique = false)
+- [ ] Add indexes
+
+### v0.5.0
+- [ ] Implement relations
+  - [ ] One-to-many relationships
+  - [ ] Many-to-many relationships
+- [ ] Make migrator prompt developer for renames vs deletes
+
+### Future Plans
 - [ ] Add support for more programming languages
   - [ ] Python
-    - [ ] psycopg2
   - [ ] Go
   - [ ] Ruby
   - [ ] PHP
@@ -64,34 +129,7 @@
   - [ ] MySQL
   - [ ] SQLite
   - [ ] Serverless databases
-- [ ] Expand column types and validation options
-  - [ ] boolean
-  - [ ] emails (special)
-  - [ ] phone numbers (special)
-  - [ ] uuid
-  - [ ] json
-  - [ ] decimal
-  - [ ] float
-  - [ ] double
-  - [ ] bigint
-  - [ ] smallint
-  - [ ] date
-  - [ ] time
-  - [ ] interval
-  - [ ] bytea
-  - [ ] enum
-  - [ ] array
-  - [ ] pgvector
-- [ ] Implement relations support
-  - [ ] One-to-many relationships
-  - [ ] Many-to-many relationships
 - [ ] Enhance FlexORM Studio with advanced features
   - [ ] Data visualization, filtering, and sorting
   - [ ] Edit cells
 - [ ] Allow migration scripts to be written in any programming language beyond SQL
-- [ ] Support more client functions
-  - [ ] delete
-  - [ ] update
-  - [ ] left join
-  - [ ] right join
-  - [ ] on conflict
