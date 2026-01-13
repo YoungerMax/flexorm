@@ -393,38 +393,24 @@ class DeleteBuilder extends QueryBuilder {
 
 /**********************************************************/
 
-{{- range $table := .Tables }}
-export interface {{typescriptName $table.Name}} {
-{{- range $column := $table.Columns}}
-    {{$column.Name}}{{if $column.Default}}?{{end}}: {{typescriptType $column.Type}};
-{{- end}}
+export interface Users {
+    id?: number;
+    name: string;
+    created?: Date;
 }
-{{- end}}
 
 /**********************************************************/
-
-{{- range $table := .Tables }}
-class {{typescriptTableName $table.Name}} extends FTable {
-{{- range $column := $table.Columns}}
-    {{$column.Name}}: FColumn<{{typescriptType $column.Type}}> = { name: "{{$column.Name}}" };
-{{- if and (eq $column.Type "text") (ne $column.Pattern nil) }}
-    private _pattern_{{$column.Name}}: RegExp = {{$column.Pattern}};
-{{- end}}
-{{- end}}
+class UsersTable extends FTable {
+    id: FColumn<number> = { name: "id" };
+    name: FColumn<string> = { name: "name" };
+    created: FColumn<Date> = { name: "created" };
 
     constructor(orm: FlexORM) {
-        super(orm, "{{$table.Name}}");
+        super(orm, "users");
         this._orm = orm;
     }
 
-    validateInsert(obj: any) {
-{{- range $column := $table.Columns}}
-{{ renderValidator $column }}
-{{- end}}
-    }
-
-    insert(values: {{typescriptName $table.Name}} | Array<{{typescriptName $table.Name}}>): InsertBuilder {
-        this.validateInsert(values);
+    insert(values: Users | Array<Users>) {
         return new InsertBuilder(this, values);
     }
 
@@ -440,18 +426,13 @@ class {{typescriptTableName $table.Name}} extends FTable {
         return new SelectBuilder(this, ...columns)
     }
 }
-{{- end}}
 
 export class FlexORM {
     _sql: postgres.Sql<{}>;
-{{- range $table := .Tables}}
-    {{$table.Name}}: {{typescriptTableName $table.Name}};
-{{- end}}
+    users: UsersTable;
 
     constructor(sql: postgres.Sql<{}>) {
         this._sql = sql;
-{{- range $table := .Tables}}
-        this.{{$table.Name}} = new {{typescriptTableName $table.Name}}(this);
-{{- end}}
+        this.users = new UsersTable(this);
     }
 }

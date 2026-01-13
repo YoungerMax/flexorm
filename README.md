@@ -43,7 +43,6 @@
 | ------------------------- | ------- | ------ | ------- | --------- | ---------- | ------ | ------- |
 | Schema-first              | ✅       | ✅      | ❌       | ❌         | ❌          | ❌      | ❌       |
 | Multi-language support    | ✅       | ❌      | ❌       | ❌         | ❌          | ❌      | ❌       |
-| Zero runtime overhead     | ✅       | ❌      | ❌       | ❌         | ❌          | ✅      | ✅       |
 | Auto migration generation | ✅       | ✅      | ✅       | ✅         | ✅          | ❌      | ✅       |
 | Simple JSON schema        | ✅       | ❌      | ❌       | ❌         | ❌          | ❌      | ❌       |
 | Built-in validation       | ✅       | ✅      | ✅       | ✅         | ❌          | ❌      | ⚠️       |
@@ -68,14 +67,16 @@
   - [X] view data in a table
 
 ### v0.2.0
-- [ ] Add update method to client
-- [ ] Add delete method to client
-- [ ] Ensure select, update, insert, delete methods will allow for subqueries later on in development 
-- [ ] Add joins
-  - [ ] inner join
-  - [ ] left join
-  - [ ] right join
-  - [ ] full join
+- [X] Add update method to client
+- [X] Add delete method to client
+- [X] Ensure select, update, insert, delete methods will allow for subqueries later on in development 
+- [X] Add joins
+  - [X] inner join
+  - [X] left join
+  - [X] right join
+  - [X] full join
+- [X] Add preliminary tests
+- [ ] Integrate testing pipeline into GitHub Actions
 
 ### v0.3.0
 - [ ] Add more column types
@@ -133,3 +134,4 @@
   - [ ] Data visualization, filtering, and sorting
   - [ ] Edit cells
 - [ ] Allow migration scripts to be written in any programming language beyond SQL
+- [ ] Add tests
