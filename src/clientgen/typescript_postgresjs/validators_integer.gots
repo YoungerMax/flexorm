@@ -1,4 +1,4 @@
-{{if or .IsAutoIncrement .HasDefault}}
+{{- if or .IsAutoIncrement .HasDefault}}
         if (obj.{{.ColName}} !== undefined && obj.{{.ColName}} !== null) {
             if (!Number.isInteger(obj.{{.ColName}})) {
                 throw new Error("{{.ColName}} must be an integer");
@@ -11,4 +11,4 @@
         if (!Number.isInteger(obj.{{.ColName}})) {
             throw new Error("{{.ColName}} must be an integer");
         }
-{{end}}
+{{- end}}

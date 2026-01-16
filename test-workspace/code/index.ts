@@ -1,24 +1,22 @@
 import postgres from "postgres";
-import { Equal, FlexORM, GreaterThanOrEqual, type Users } from "./client";
+import { Equal, FlexORM } from "./client";
 
 const client = postgres("postgresql://postgres:postgres@localhost/postgres");
 const orm = new FlexORM(client);
 
-const obj = await orm.users.insert({
-    name: "blah you go",
-    created: null
-})
-.returning(orm.users.id, orm.users.name, orm.users.created);
+const result = await orm.users.insert({
+    name: "lincolnmaxwell",
+}).returning(orm.users.id);
 
-console.log(obj);
+const userId = result[0]['id'] as number;
 
-const users = await orm.users
-    .select()
-    .where(new GreaterThanOrEqual(orm.users.id, 2))
-    .limit(5) as Users[];
+await orm.posts.insert([
+    { text: "Hello world!", author_id: userId },
+    { text: "Isn't today a great day?!", author_id: userId }
+]);
 
-for (let user of users) {
-    console.log(user.name);
-}
+const postsResult = await orm.posts.select().leftJoin(orm.users, new Equal(orm.users.id, orm.posts.author_id));
+
+console.log(postsResult);
 
 client.end()

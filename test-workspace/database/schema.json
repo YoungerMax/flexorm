@@ -19,10 +19,6 @@
                     "name": "created",
                     "type": "timestamp",
                     "default": "now"
-                },
-                {
-                    "name": "is_admin",
-                    "type": "boolean"
                 }
             ]
         },
@@ -34,6 +30,10 @@
                     "primaryKey": true,
                     "type": "integer",
                     "default": "autoincrement"
+                },
+                {
+                    "name": "author_id",
+                    "type": "integer"
                 },
                 {
                     "name": "created",

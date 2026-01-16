@@ -1,4 +1,4 @@
-{{if .HasDefault}}
+{{- if .HasDefault}}
         if (obj.{{.ColName}} !== undefined && obj.{{.ColName}} !== null) {
             if (!(obj.{{.ColName}} instanceof Date)) {
                 throw new Error("{{.ColName}} must be a Date object");
@@ -8,7 +8,8 @@
         if (obj.{{.ColName}} === undefined || obj.{{.ColName}} === null) {
             throw new Error("{{.ColName}} is required");
         }
+        
         if (!(obj.{{.ColName}} instanceof Date)) {
             throw new Error("{{.ColName}} must be a Date object");
         }
-{{end}}
+{{- end}}

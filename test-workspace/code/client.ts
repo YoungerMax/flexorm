@@ -77,6 +77,11 @@ function toIdentifier(sql: postgres.Sql<{}>, col: FColumn<any> | string): postgr
     return sql(typeof col === 'string' ? col : col.name);
 }
 
+// Helper function to check if a value is an FColumn
+function isColumn(value: any): value is FColumn<any> {
+    return value && typeof value === 'object' && 'name' in value && typeof value.name === 'string';
+}
+
 function expressionToSql(sql: postgres.Sql<{}>, expression: FSql): postgres.PendingQuery<any> {
     if (expression instanceof And || expression instanceof Or) {
         if (expression.operators.length === 0) {
@@ -118,7 +123,12 @@ function expressionToSql(sql: postgres.Sql<{}>, expression: FSql): postgres.Pend
         const op = operatorMap[expression.constructor.name];
 
         if (op) {
-            return sql`${column} ${sql.unsafe(op)} ${value}`;
+            // Check if right side is a column or a value
+            if (isColumn(value)) {
+                return sql`${column} ${sql.unsafe(op)} ${toIdentifier(sql, value)}`;
+            } else {
+                return sql`${column} ${sql.unsafe(op)} ${value}`;
+            }
         }
 
         if (expression instanceof In) {
@@ -391,26 +401,126 @@ class DeleteBuilder extends QueryBuilder {
     }
 }
 
-/**********************************************************/
 
+/**********************************************************/
 export interface Users {
     id?: number;
     name: string;
     created?: Date;
 }
+export interface Posts {
+    id?: number;
+    author_id: number;
+    created?: Date;
+    text: string;
+}
 
 /**********************************************************/
 class UsersTable extends FTable {
-    id: FColumn<number> = { name: "id" };
-    name: FColumn<string> = { name: "name" };
-    created: FColumn<Date> = { name: "created" };
+    id: FColumn<number> = { name: "users.id" };
+    name: FColumn<string> = { name: "users.name" };
+    private _pattern_name: RegExp = /^[a-z]+$/i;
+    created: FColumn<Date> = { name: "users.created" };
 
     constructor(orm: FlexORM) {
         super(orm, "users");
         this._orm = orm;
     }
 
-    insert(values: Users | Array<Users>) {
+    validateInsert(obj: any) {
+
+        if (obj.id !== undefined && obj.id !== null) {
+            if (!Number.isInteger(obj.id)) {
+                throw new Error("id must be an integer");
+            }
+        }
+
+
+        if (obj.name !== undefined && obj.name !== null) {
+
+            if (typeof obj.name !== 'string') {
+                throw new Error("name must be a string");
+            }
+            if (obj.name.length > 64) {
+                throw new Error("name must be at most 64 characters");
+            }
+            if (!this._pattern_name.test(obj.name)) {
+                throw new Error("name does not match required pattern");
+            }
+        }
+
+        if (obj.created !== undefined && obj.created !== null) {
+            if (!(obj.created instanceof Date)) {
+                throw new Error("created must be a Date object");
+            }
+        }
+
+    }
+
+    insert(values: Users | Array<Users>): InsertBuilder {
+        this.validateInsert(values);
+        return new InsertBuilder(this, values);
+    }
+
+    update(): UpdateBuilder {
+        return new UpdateBuilder(this);
+    }
+
+    delete(): DeleteBuilder {
+        return new DeleteBuilder(this);
+    }
+
+    select(...columns: Array<FColumn<any> | string>): SelectBuilder {
+        return new SelectBuilder(this, ...columns)
+    }
+}
+class PostsTable extends FTable {
+    id: FColumn<number> = { name: "posts.id" };
+    author_id: FColumn<number> = { name: "posts.author_id" };
+    created: FColumn<Date> = { name: "posts.created" };
+    text: FColumn<string> = { name: "posts.text" };
+
+    constructor(orm: FlexORM) {
+        super(orm, "posts");
+        this._orm = orm;
+    }
+
+    validateInsert(obj: any) {
+
+        if (obj.id !== undefined && obj.id !== null) {
+            if (!Number.isInteger(obj.id)) {
+                throw new Error("id must be an integer");
+            }
+        }
+
+
+        if (obj.author_id !== undefined && obj.author_id !== null) {
+            if (!Number.isInteger(obj.author_id)) {
+                throw new Error("author_id must be an integer");
+            }
+        }
+
+
+        if (obj.created !== undefined && obj.created !== null) {
+            if (!(obj.created instanceof Date)) {
+                throw new Error("created must be a Date object");
+            }
+        }
+
+
+        if (obj.text !== undefined && obj.text !== null) {
+
+            if (typeof obj.text !== 'string') {
+                throw new Error("text must be a string");
+            }
+            if (obj.text.length > 256) {
+                throw new Error("text must be at most 256 characters");
+            }
+        }
+    }
+
+    insert(values: Posts | Array<Posts>): InsertBuilder {
+        this.validateInsert(values);
         return new InsertBuilder(this, values);
     }
 
@@ -430,9 +540,11 @@ class UsersTable extends FTable {
 export class FlexORM {
     _sql: postgres.Sql<{}>;
     users: UsersTable;
+    posts: PostsTable;
 
     constructor(sql: postgres.Sql<{}>) {
         this._sql = sql;
         this.users = new UsersTable(this);
+        this.posts = new PostsTable(this);
     }
 }

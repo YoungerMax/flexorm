@@ -77,6 +77,11 @@ function toIdentifier(sql: postgres.Sql<{}>, col: FColumn<any> | string): postgr
     return sql(typeof col === 'string' ? col : col.name);
 }
 
+// Helper function to check if a value is an FColumn
+function isColumn(value: any): value is FColumn<any> {
+    return value && typeof value === 'object' && 'name' in value && typeof value.name === 'string';
+}
+
 function expressionToSql(sql: postgres.Sql<{}>, expression: FSql): postgres.PendingQuery<any> {
     if (expression instanceof And || expression instanceof Or) {
         if (expression.operators.length === 0) {
@@ -118,7 +123,12 @@ function expressionToSql(sql: postgres.Sql<{}>, expression: FSql): postgres.Pend
         const op = operatorMap[expression.constructor.name];
 
         if (op) {
-            return sql`${column} ${sql.unsafe(op)} ${value}`;
+            // Check if right side is a column or a value
+            if (isColumn(value)) {
+                return sql`${column} ${sql.unsafe(op)} ${toIdentifier(sql, value)}`;
+            } else {
+                return sql`${column} ${sql.unsafe(op)} ${value}`;
+            }
         }
 
         if (expression instanceof In) {
@@ -391,6 +401,7 @@ class DeleteBuilder extends QueryBuilder {
     }
 }
 
+
 /**********************************************************/
 
 {{- range $table := .Tables }}
@@ -406,7 +417,7 @@ export interface {{typescriptName $table.Name}} {
 {{- range $table := .Tables }}
 class {{typescriptTableName $table.Name}} extends FTable {
 {{- range $column := $table.Columns}}
-    {{$column.Name}}: FColumn<{{typescriptType $column.Type}}> = { name: "{{$column.Name}}" };
+    {{$column.Name}}: FColumn<{{typescriptType $column.Type}}> = { name: "{{$table.Name}}.{{$column.Name}}" };
 {{- if and (eq $column.Type "text") (ne $column.Pattern nil) }}
     private _pattern_{{$column.Name}}: RegExp = {{$column.Pattern}};
 {{- end}}
