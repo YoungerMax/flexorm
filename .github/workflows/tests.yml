@@ -54,9 +54,9 @@ jobs:
         run: ./flexorm generate -o ../code/client.ts 
 
       - name: Install dependencies
-        working-directory: example-workspace/code
+        working-directory: test-workspace/code
         run: bun install
 
       - name: Run tests
-        working-directory: example-workspace/code
+        working-directory: test-workspace/code
         run: bun test
