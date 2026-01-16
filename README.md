@@ -76,7 +76,7 @@
   - [X] right join
   - [X] full join
 - [X] Add preliminary tests
-- [ ] Integrate testing pipeline into GitHub Actions
+- [X] Integrate testing pipeline into GitHub Actions
 
 ### v0.3.0
 - [ ] Add more column types
