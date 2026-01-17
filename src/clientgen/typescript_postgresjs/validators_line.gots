@@ -1,0 +1,32 @@
+{{- if .HasDefault}}
+        if (obj.{{.ColName}} !== undefined && obj.{{.ColName}} !== null) {
+            if (typeof obj.{{.ColName}} !== 'object' || obj.{{.ColName}}.a === undefined || obj.{{.ColName}}.b === undefined || obj.{{.ColName}}.c === undefined) {
+                throw new Error("{{.ColName}} must be an object with a, b, and c properties");
+            }
+            if (typeof obj.{{.ColName}}.a !== 'number' || !isFinite(obj.{{.ColName}}.a)) {
+                throw new Error("{{.ColName}}.a must be a finite number");
+            }
+            if (typeof obj.{{.ColName}}.b !== 'number' || !isFinite(obj.{{.ColName}}.b)) {
+                throw new Error("{{.ColName}}.b must be a finite number");
+            }
+            if (typeof obj.{{.ColName}}.c !== 'number' || !isFinite(obj.{{.ColName}}.c)) {
+                throw new Error("{{.ColName}}.c must be a finite number");
+            }
+        }
+{{else}}
+        if (obj.{{.ColName}} === undefined || obj.{{.ColName}} === null) {
+            throw new Error("{{.ColName}} is required");
+        }
+        if (typeof obj.{{.ColName}} !== 'object' || obj.{{.ColName}}.a === undefined || obj.{{.ColName}}.b === undefined || obj.{{.ColName}}.c === undefined) {
+            throw new Error("{{.ColName}} must be an object with a, b, and c properties");
+        }
+        if (typeof obj.{{.ColName}}.a !== 'number' || !isFinite(obj.{{.ColName}}.a)) {
+            throw new Error("{{.ColName}}.a must be a finite number");
+        }
+        if (typeof obj.{{.ColName}}.b !== 'number' || !isFinite(obj.{{.ColName}}.b)) {
+            throw new Error("{{.ColName}}.b must be a finite number");
+        }
+        if (typeof obj.{{.ColName}}.c !== 'number' || !isFinite(obj.{{.ColName}}.c)) {
+            throw new Error("{{.ColName}}.c must be a finite number");
+        }
+{{- end}}

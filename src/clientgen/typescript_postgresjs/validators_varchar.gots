@@ -1,0 +1,21 @@
+{{- if .HasDefault}}
+        if (obj.{{.ColName}} !== undefined && obj.{{.ColName}} !== null) {
+{{else}}
+        if (obj.{{.ColName}} === undefined || obj.{{.ColName}} === null) {
+            throw new Error("{{.ColName}} is required");
+        } else {
+{{- end}}
+            if (typeof obj.{{.ColName}} !== 'string') {
+                throw new Error("{{.ColName}} must be a string");
+            }
+{{- if .HasMaxLength}}
+            if (obj.{{.ColName}}.length > {{.MaxLength}}) {
+                throw new Error("{{.ColName}} must be at most {{.MaxLength}} characters");
+            }
+{{- end}}
+{{- if .HasPattern}}
+            if (!this._pattern_{{.ColName}}.test(obj.{{.ColName}})) {
+                throw new Error("{{.ColName}} does not match required pattern");
+            }
+{{- end}}
+        }

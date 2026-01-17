@@ -1,0 +1,26 @@
+{{- if .HasDefault}}
+        if (obj.{{.ColName}} !== undefined && obj.{{.ColName}} !== null) {
+            if (typeof obj.{{.ColName}} !== 'string') {
+                throw new Error("{{.ColName}} must be a string");
+            }
+{{- if .HasEnumOptions}}
+            const validOptions = [{{range $i, $opt := .EnumOptions}}{{if $i}}, {{end}}"{{$opt}}"{{end}}];
+            if (!validOptions.includes(obj.{{.ColName}})) {
+                throw new Error("{{.ColName}} must be one of: {{range $i, $opt := .EnumOptions}}{{if $i}}, {{end}}{{$opt}}{{end}}");
+            }
+{{- end}}
+        }
+{{else}}
+        if (obj.{{.ColName}} === undefined || obj.{{.ColName}} === null) {
+            throw new Error("{{.ColName}} is required");
+        }
+        if (typeof obj.{{.ColName}} !== 'string') {
+            throw new Error("{{.ColName}} must be a string");
+        }
+{{- if .HasEnumOptions}}
+        const validOptions = [{{range $i, $opt := .EnumOptions}}{{if $i}}, {{end}}"{{$opt}}"{{end}}];
+        if (!validOptions.includes(obj.{{.ColName}})) {
+            throw new Error("{{.ColName}} must be one of: {{range $i, $opt := .EnumOptions}}{{if $i}}, {{end}}{{$opt}}{{end}}");
+        }
+{{- end}}
+{{- end}}

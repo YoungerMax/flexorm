@@ -6,8 +6,70 @@
  */
 import postgres from "postgres";
 
+// Geometric types
+export class Point {
+    x: number;
+    y: number;
+
+    constructor(x: number, y: number) {
+        this.x = x;
+        this.y = y;
+    }
+
+    toString(): string {
+        return `(${this.x},${this.y})`;
+    }
+
+    static fromString(str: string): Point {
+        const match = str.match(/\(([^,]+),([^)]+)\)/);
+        if (!match) throw new Error(`Invalid point format: ${str}`);
+        return new Point(parseFloat(match[1]), parseFloat(match[2]));
+    }
+
+    static fromPostgres(value: any): Point {
+        if (value instanceof Point) return value;
+        if (typeof value === 'string') return Point.fromString(value);
+        if (value && typeof value === 'object' && 'x' in value && 'y' in value) {
+            return new Point(value.x, value.y);
+        }
+        throw new Error(`Cannot convert ${typeof value} to Point`);
+    }
+}
+
+export class Line {
+    a: number;
+    b: number;
+    c: number;
+
+    constructor(a: number, b: number, c: number) {
+        this.a = a;
+        this.b = b;
+        this.c = c;
+    }
+
+    toString(): string {
+        return `{${this.a},${this.b},${this.c}}`;
+    }
+
+    static fromString(str: string): Line {
+        const match = str.match(/\{([^,]+),([^,]+),([^}]+)\}/);
+        if (!match) throw new Error(`Invalid line format: ${str}`);
+        return new Line(parseFloat(match[1]), parseFloat(match[2]), parseFloat(match[3]));
+    }
+
+    static fromPostgres(value: any): Line {
+        if (value instanceof Line) return value;
+        if (typeof value === 'string') return Line.fromString(value);
+        if (value && typeof value === 'object' && 'a' in value && 'b' in value && 'c' in value) {
+            return new Line(value.a, value.b, value.c);
+        }
+        throw new Error(`Cannot convert ${typeof value} to Line`);
+    }
+}
+
 interface FColumn<ColumnType> {
-    name: string;
+    name: string;      // formal name: "table.column"
+    column: string;    // column name: "column"
 }
 
 type FSql = FBiColumnSqlType<any> | FColumnSqlType<any> | FMultipleSqlType;
@@ -55,7 +117,7 @@ export class Or extends FMultipleSqlType { }
 export class IsNull extends FColumnSqlType<any> { }
 export class IsNotNull extends FColumnSqlType<any> { }
 
-class FTable {
+abstract class FTable {
     _orm: FlexORM;
     $$name: string;
 
@@ -63,6 +125,10 @@ class FTable {
         this._orm = orm;
         this.$$name = $$name;
     }
+
+    abstract _deserializeRow(row: any): any;
+    abstract _serializeForInsert(values: any): any;
+    abstract _serializeForUpdate(values: any): any;
 }
 
 type JoinType = 'LEFT' | 'RIGHT' | 'INNER' | 'FULL' | 'CROSS';
@@ -77,9 +143,24 @@ function toIdentifier(sql: postgres.Sql<{}>, col: FColumn<any> | string): postgr
     return sql(typeof col === 'string' ? col : col.name);
 }
 
+function toColumnName(col: FColumn<any> | string): string {
+    return typeof col === 'string' ? col : col.column;
+}
+
 // Helper function to check if a value is an FColumn
 function isColumn(value: any): value is FColumn<any> {
-    return value && typeof value === 'object' && 'name' in value && typeof value.name === 'string';
+    return value && typeof value === 'object' && 'name' in value && 'column' in value && typeof value.name === 'string';
+}
+
+// Helper to serialize geometric types for WHERE clauses
+function serializeValue(value: any): any {
+    if (value instanceof Point || value instanceof Line) {
+        return value.toString();
+    }
+    if (Array.isArray(value)) {
+        return value.map(serializeValue);
+    }
+    return value;
 }
 
 function expressionToSql(sql: postgres.Sql<{}>, expression: FSql): postgres.PendingQuery<any> {
@@ -107,7 +188,7 @@ function expressionToSql(sql: postgres.Sql<{}>, expression: FSql): postgres.Pend
 
     if (expression instanceof FBiColumnSqlType) {
         const column = toIdentifier(sql, expression.left);
-        const value = expression.right;
+        const value = serializeValue(expression.right);
 
         const operatorMap: Record<string, string> = {
             [Equal.name]: '=',
@@ -155,7 +236,13 @@ abstract class QueryBuilder {
         onrejected?: ((err: Error) => never | PromiseLike<never>) | null
     ): Promise<T[]> {
         try {
-            return this.toSql().then(onfulfilled, onrejected);
+            return this.toSql().then(
+                (rows) => {
+                    const deserialized = rows.map(row => this._table._deserializeRow(row));
+                    return onfulfilled ? onfulfilled(deserialized) : deserialized;
+                },
+                onrejected
+            );
         } catch (err) {
             return Promise.reject(err).then(onfulfilled, onrejected);
         }
@@ -181,7 +268,7 @@ class SelectBuilder extends QueryBuilder {
     private _where?: FSql;
     private _groupBy: Array<FColumn<any> | string> = [];
     private _having?: FSql;
-    private _orderBy: Array<{ column: FSql | string; direction: 'ASC' | 'DESC' }> = [];
+    private _orderBy: Array<{ column: FColumn<any> | string; direction: 'ASC' | 'DESC' }> = [];
     private _limit?: number;
     private _offset?: number;
     private _joins: Join[] = [];
@@ -196,7 +283,7 @@ class SelectBuilder extends QueryBuilder {
     where(condition: FSql) { this._where = condition; return this; }
     groupBy(...columns: Array<FColumn<any> | string>) { this._groupBy.push(...columns); return this; }
     having(condition: FSql) { this._having = condition; return this; }
-    orderBy(column: FSql | string, direction: 'ASC' | 'DESC' = 'ASC') { this._orderBy.push({ column, direction }); return this; }
+    orderBy(column: FColumn<any> | string, direction: 'ASC' | 'DESC' = 'ASC') { this._orderBy.push({ column, direction }); return this; }
     limit(limit: number) { this._limit = limit; return this; }
     offset(offset: number) { this._offset = offset; return this; }
     join(type: JoinType, table: FTable, condition?: FSql) { this._joins.push({ type, table, condition }); return this; }
@@ -215,7 +302,7 @@ class SelectBuilder extends QueryBuilder {
         let query;
 
         const selectCols = this._columns.length > 0
-            ? sql.unsafe(this._columns.map(c => typeof c === 'string' ? c : c.name).join(', '))
+            ? sql.unsafe(this._columns.map(c => toColumnName(c)).join(', '))
             : sql`*`;
 
         if (this._distinct) {
@@ -240,7 +327,7 @@ class SelectBuilder extends QueryBuilder {
 
         // GROUP BY clause
         if (this._groupBy.length > 0) {
-            const groupCols = this._groupBy.map(column => typeof column === 'string' ? column : column.name).join(', ');
+            const groupCols = this._groupBy.map(column => toColumnName(column)).join(', ');
 
             query = sql`${query} GROUP BY ${sql.unsafe(groupCols)}`;
         }
@@ -253,7 +340,7 @@ class SelectBuilder extends QueryBuilder {
         // ORDER BY clause
         if (this._orderBy.length > 0) {
             const orderParts = this._orderBy.map(o => {
-                const colName = typeof o.column === 'string' ? o.column : (o.column as any).name;
+                const colName = toColumnName(o.column);
                 return `"${colName}" ${o.direction}`;
             }).join(', ');
 
@@ -282,29 +369,23 @@ class SelectBuilder extends QueryBuilder {
 }
 
 class InsertBuilder extends QueryBuilder {
-    private _values: Array<Record<string, any>> = [];
+    private _values: any;
     private _onConflict?: { target?: string | string[]; action: 'NOTHING' | 'UPDATE'; updateSet?: Record<string, any>; };
     private _returning: Array<FColumn<any> | string> = [];
 
-    constructor(table: FTable, values: Record<string, any> | Array<Record<string, any>>) {
+    constructor(table: FTable, values: any) {
         super(table);
-
-        if (Array.isArray(values)) { 
-            this._values.push(...values);
-        } else {
-            this._values.push(values);
-        }
+        this._values = values;
     }
 
     onConflictDoNothing(target?: string | string[]) { this._onConflict = { target, action: 'NOTHING' }; return this; }
-    onConflictDoUpdate(target: string | string[], updateSet: Record<string, any>) { this._onConflict = { target, action: 'UPDATE', updateSet }; return this; }
+    onConflictDoUpdate(target: string | string[], updateSet: Record<string, any>) { 
+        this._onConflict = { target, action: 'UPDATE', updateSet: this._table._serializeForUpdate(updateSet) }; 
+        return this; 
+    }
     returning(...columns: Array<FColumn<any> | string>) {this._returning.push(...columns); return this; }
 
     toSql(): postgres.PendingQuery<any> {
-        if (this._values.length === 0) {
-            throw new Error('INSERT requires values');
-        }
-
         let sql = this._table._orm._sql;
 
         // INSERT INTO builder
@@ -331,7 +412,7 @@ class InsertBuilder extends QueryBuilder {
 
         // RETURNING builder
         if (this._returning.length > 0) {
-            const colNames = this._returning.map(c => typeof c === 'string' ? c : c.name).join(', ');
+            const colNames = this._returning.map(c => toColumnName(c)).join(', ');
             query = sql`${query} RETURNING ${sql.unsafe(colNames)}`;
         }
 
@@ -340,19 +421,19 @@ class InsertBuilder extends QueryBuilder {
 }
 
 class UpdateBuilder extends QueryBuilder {
-    private _set: Record<string, any> = {};
+    private _set: any;
     private _where?: FSql;
     private _returning: Array<FColumn<any> | string> = [];
 
-    set(values: Record<string, any>) { this._set = { ...this._set, ...values }; return this; }
+    constructor(table: FTable, values: any) {
+        super(table);
+        this._set = values;
+    }
+
     where(condition: FSql) { this._where = condition; return this; }
     returning(...columns: Array<FColumn<any> | string>) { this._returning.push(...columns); return this; }
 
     toSql(): postgres.PendingQuery<any> {
-        if (Object.keys(this._set).length === 0) {
-            throw new Error('UPDATE requires SET');
-        }
-
         let sql = this._table._orm._sql;
 
         let query = sql`UPDATE ${sql.unsafe(this._table.$$name)} SET ${sql(this._set)}`;
@@ -362,7 +443,7 @@ class UpdateBuilder extends QueryBuilder {
         }
 
         if (this._returning.length > 0) {
-            const colNames = this._returning.map(c => typeof c === 'string' ? c : c.name).join(', ');
+            const colNames = this._returning.map(c => toColumnName(c)).join(', ');
             query = sql`${query} RETURNING ${sql.unsafe(colNames)}`;
         }
 
@@ -393,7 +474,7 @@ class DeleteBuilder extends QueryBuilder {
         }
 
         if (this._returning.length > 0) {
-            const colNames = this._returning.map(c => typeof c === 'string' ? c : c.name).join(', ');
+            const colNames = this._returning.map(c => toColumnName(c)).join(', ');
             query = sql`${query} RETURNING ${sql.unsafe(colNames)}`;
         }
 
@@ -407,9 +488,11 @@ class DeleteBuilder extends QueryBuilder {
 {{- range $table := .Tables }}
 export interface {{typescriptName $table.Name}} {
 {{- range $column := $table.Columns}}
-    {{$column.Name}}{{if $column.Default}}?{{end}}: {{typescriptType $column.Type}};
+    {{$column.Name}}{{if $column.Default}}?{{end}}: {{typescriptTypeColumn $column}};
 {{- end}}
 }
+
+export type {{typescriptName $table.Name}}Update = Partial<{{typescriptName $table.Name}}>;
 {{- end}}
 
 /**********************************************************/
@@ -417,8 +500,8 @@ export interface {{typescriptName $table.Name}} {
 {{- range $table := .Tables }}
 class {{typescriptTableName $table.Name}} extends FTable {
 {{- range $column := $table.Columns}}
-    {{$column.Name}}: FColumn<{{typescriptType $column.Type}}> = { name: "{{$table.Name}}.{{$column.Name}}" };
-{{- if and (eq $column.Type "text") (ne $column.Pattern nil) }}
+    {{$column.Name}}: FColumn<{{typescriptTypeColumn $column}}> = { name: "{{$table.Name}}.{{$column.Name}}", column: "{{$column.Name}}" };
+{{- if ne $column.Pattern nil }}
     private _pattern_{{$column.Name}}: RegExp = {{$column.Pattern}};
 {{- end}}
 {{- end}}
@@ -428,6 +511,79 @@ class {{typescriptTableName $table.Name}} extends FTable {
         this._orm = orm;
     }
 
+    _deserializeRow(row: any): {{typescriptName $table.Name}} {
+        if (!row) return row;
+        
+{{- $hasGeometric := false }}
+{{- range $column := $table.Columns}}
+{{- if or (eq $column.Type "point") (eq $column.Type "line") }}
+{{- $hasGeometric = true }}
+{{- end}}
+{{- end}}
+{{- if $hasGeometric }}
+        return {
+            ...row,
+{{- range $column := $table.Columns}}
+{{- if eq $column.Type "point" }}
+            {{$column.Name}}: row.{{$column.Name}} !== null && row.{{$column.Name}} !== undefined 
+                ? Point.fromPostgres(row.{{$column.Name}}) 
+                : row.{{$column.Name}},
+{{- else if eq $column.Type "line" }}
+            {{$column.Name}}: row.{{$column.Name}} !== null && row.{{$column.Name}} !== undefined 
+                ? Line.fromPostgres(row.{{$column.Name}}) 
+                : row.{{$column.Name}},
+{{- end}}
+{{- end}}
+        };
+{{- else }}
+        return row;
+{{- end}}
+    }
+
+    _serializeForInsert(values: {{typescriptName $table.Name}} | Array<{{typescriptName $table.Name}}>): any {
+{{- if $hasGeometric }}
+        if (Array.isArray(values)) {
+            return values.map(v => this._serializeSingleRow(v));
+        }
+        return this._serializeSingleRow(values);
+{{- else }}
+        return values;
+{{- end}}
+    }
+
+    _serializeForUpdate(values: {{typescriptName $table.Name}}Update): any {
+{{- if $hasGeometric }}
+        return this._serializeSingleRow(values);
+{{- else }}
+        return values;
+{{- end}}
+    }
+
+{{- if $hasGeometric }}
+    private _serializeSingleRow(row: any): any {
+        if (!row) return row;
+        
+        return Object.fromEntries(
+            Object.entries(row)
+                .filter(([_, value]) => value !== undefined)
+                .map(([key, value]) => {
+{{- range $column := $table.Columns}}
+{{- if eq $column.Type "point" }}
+                    if (key === '{{$column.Name}}') {
+                        return [key, value instanceof Point ? value.toString() : value];
+                    }
+{{- else if eq $column.Type "line" }}
+                    if (key === '{{$column.Name}}') {
+                        return [key, value instanceof Line ? value.toString() : value];
+                    }
+{{- end}}
+{{- end}}
+                    return [key, value];
+                })
+        );
+    }
+{{- end}}
+
     validateInsert(obj: any) {
 {{- range $column := $table.Columns}}
 {{ renderValidator $column }}
@@ -436,11 +592,13 @@ class {{typescriptTableName $table.Name}} extends FTable {
 
     insert(values: {{typescriptName $table.Name}} | Array<{{typescriptName $table.Name}}>): InsertBuilder {
         this.validateInsert(values);
-        return new InsertBuilder(this, values);
+        const serialized = this._serializeForInsert(values);
+        return new InsertBuilder(this, serialized);
     }
 
-    update(): UpdateBuilder {
-        return new UpdateBuilder(this);
+    update(values: {{typescriptName $table.Name}}Update): UpdateBuilder {
+        const serialized = this._serializeForUpdate(values);
+        return new UpdateBuilder(this, serialized);
     }
 
     delete(): DeleteBuilder {
@@ -448,7 +606,7 @@ class {{typescriptTableName $table.Name}} extends FTable {
     }
 
     select(...columns: Array<FColumn<any> | string>): SelectBuilder {
-        return new SelectBuilder(this, ...columns)
+        return new SelectBuilder(this, ...columns);
     }
 }
 {{- end}}

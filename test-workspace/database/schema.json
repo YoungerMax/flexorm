@@ -1,7 +1,7 @@
 {
     "tables": [
         {
-            "name": "users",
+            "name": "validator_test_table",
             "columns": [
                 {
                     "name": "id",
@@ -10,40 +10,167 @@
                     "default": "autoincrement"
                 },
                 {
-                    "name": "name",
-                    "type": "text",
-                    "maxLength": 64,
-                    "pattern": "/^[a-z]+$/i"
-                },
-                {
-                    "name": "created",
-                    "type": "timestamp",
-                    "default": "now"
-                }
-            ]
-        },
-        {
-            "name": "posts",
-            "columns": [
-                {
-                    "name": "id",
-                    "primaryKey": true,
-                    "type": "integer",
-                    "default": "autoincrement"
-                },
-                {
-                    "name": "author_id",
+                    "name": "required_integer",
                     "type": "integer"
                 },
                 {
-                    "name": "created",
+                    "name": "optional_integer_with_default",
+                    "type": "integer",
+                    "default": 42
+                },
+                {
+                    "name": "required_varchar_maxlength",
+                    "type": "varchar",
+                    "maxLength": 50
+                },
+                {
+                    "name": "optional_varchar_pattern",
+                    "type": "varchar",
+                    "maxLength": 20,
+                    "pattern": "/^[A-Z0-9]+$/",
+                    "default": "DEFAULT123"
+                },
+                {
+                    "name": "required_char_fixed",
+                    "type": "char",
+                    "length": 5
+                },
+                {
+                    "name": "optional_char_with_default",
+                    "type": "char",
+                    "length": 3,
+                    "default": "ABC"
+                },
+                {
+                    "name": "required_text_minlength",
+                    "type": "text",
+                    "minLength": 10
+                },
+                {
+                    "name": "optional_text_maxlength_pattern",
+                    "type": "text",
+                    "maxLength": 100,
+                    "pattern": "/^[a-z\\s]+$/",
+                    "default": "default text"
+                },
+                {
+                    "name": "required_uuid",
+                    "type": "uuid"
+                },
+                {
+                    "name": "optional_uuid_with_default",
+                    "type": "uuid",
+                    "default": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                {
+                    "name": "required_json",
+                    "type": "json"
+                },
+                {
+                    "name": "optional_json_with_default",
+                    "type": "json",
+                    "default": "{\"key\": \"value\"}"
+                },
+                {
+                    "name": "required_boolean",
+                    "type": "boolean"
+                },
+                {
+                    "name": "optional_boolean_with_default",
+                    "type": "boolean",
+                    "default": true
+                },
+                {
+                    "name": "required_numeric",
+                    "type": "numeric"
+                },
+                {
+                    "name": "optional_numeric_with_default",
+                    "type": "numeric",
+                    "default": 123.45
+                },
+                {
+                    "name": "required_real",
+                    "type": "real"
+                },
+                {
+                    "name": "optional_real_with_default",
+                    "type": "real",
+                    "default": 3.14
+                },
+                {
+                    "name": "required_double_precision",
+                    "type": "double precision"
+                },
+                {
+                    "name": "optional_double_precision_with_default",
+                    "type": "double precision",
+                    "default": 2.718281828459045
+                },
+                {
+                    "name": "required_timestamp",
+                    "type": "timestamp"
+                },
+                {
+                    "name": "optional_timestamp_with_default",
                     "type": "timestamp",
                     "default": "now"
                 },
                 {
-                    "name": "text",
-                    "type": "text",
-                    "maxLength": 256
+                    "name": "required_date",
+                    "type": "date"
+                },
+                {
+                    "name": "optional_date_with_default",
+                    "type": "date",
+                    "default": "2024-01-01"
+                },
+                {
+                    "name": "required_time",
+                    "type": "time"
+                },
+                {
+                    "name": "optional_time_with_default",
+                    "type": "time",
+                    "default": "12:00:00"
+                },
+                {
+                    "name": "required_enum",
+                    "type": "enum",
+                    "enumOptions": ["OPTION_A", "OPTION_B", "OPTION_C"]
+                },
+                {
+                    "name": "optional_enum_with_default",
+                    "type": "enum",
+                    "enumOptions": ["LOW", "MEDIUM", "HIGH"],
+                    "default": "MEDIUM"
+                },
+                {
+                    "name": "required_point",
+                    "type": "point"
+                },
+                {
+                    "name": "optional_point_with_default",
+                    "type": "point",
+                    "default": {"x": 0, "y": 0}
+                },
+                {
+                    "name": "required_line",
+                    "type": "line"
+                },
+                {
+                    "name": "optional_line_with_default",
+                    "type": "line",
+                    "default": {"a": 1, "b": 0, "c": 0}
+                },
+                {
+                    "name": "required_interval",
+                    "type": "interval"
+                },
+                {
+                    "name": "optional_interval_with_default",
+                    "type": "interval",
+                    "default": "1 hour 30 minutes"
                 }
             ]
         }

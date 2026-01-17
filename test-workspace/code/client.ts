@@ -6,8 +6,70 @@
  */
 import postgres from "postgres";
 
+// Geometric types
+export class Point {
+    x: number;
+    y: number;
+
+    constructor(x: number, y: number) {
+        this.x = x;
+        this.y = y;
+    }
+
+    toString(): string {
+        return `(${this.x},${this.y})`;
+    }
+
+    static fromString(str: string): Point {
+        const match = str.match(/\(([^,]+),([^)]+)\)/);
+        if (!match) throw new Error(`Invalid point format: ${str}`);
+        return new Point(parseFloat(match[1]), parseFloat(match[2]));
+    }
+
+    static fromPostgres(value: any): Point {
+        if (value instanceof Point) return value;
+        if (typeof value === 'string') return Point.fromString(value);
+        if (value && typeof value === 'object' && 'x' in value && 'y' in value) {
+            return new Point(value.x, value.y);
+        }
+        throw new Error(`Cannot convert ${typeof value} to Point`);
+    }
+}
+
+export class Line {
+    a: number;
+    b: number;
+    c: number;
+
+    constructor(a: number, b: number, c: number) {
+        this.a = a;
+        this.b = b;
+        this.c = c;
+    }
+
+    toString(): string {
+        return `{${this.a},${this.b},${this.c}}`;
+    }
+
+    static fromString(str: string): Line {
+        const match = str.match(/\{([^,]+),([^,]+),([^}]+)\}/);
+        if (!match) throw new Error(`Invalid line format: ${str}`);
+        return new Line(parseFloat(match[1]), parseFloat(match[2]), parseFloat(match[3]));
+    }
+
+    static fromPostgres(value: any): Line {
+        if (value instanceof Line) return value;
+        if (typeof value === 'string') return Line.fromString(value);
+        if (value && typeof value === 'object' && 'a' in value && 'b' in value && 'c' in value) {
+            return new Line(value.a, value.b, value.c);
+        }
+        throw new Error(`Cannot convert ${typeof value} to Line`);
+    }
+}
+
 interface FColumn<ColumnType> {
-    name: string;
+    name: string;      // formal name: "table.column"
+    column: string;    // column name: "column"
 }
 
 type FSql = FBiColumnSqlType<any> | FColumnSqlType<any> | FMultipleSqlType;
@@ -55,7 +117,7 @@ export class Or extends FMultipleSqlType { }
 export class IsNull extends FColumnSqlType<any> { }
 export class IsNotNull extends FColumnSqlType<any> { }
 
-class FTable {
+abstract class FTable {
     _orm: FlexORM;
     $$name: string;
 
@@ -63,6 +125,10 @@ class FTable {
         this._orm = orm;
         this.$$name = $$name;
     }
+
+    abstract _deserializeRow(row: any): any;
+    abstract _serializeForInsert(values: any): any;
+    abstract _serializeForUpdate(values: any): any;
 }
 
 type JoinType = 'LEFT' | 'RIGHT' | 'INNER' | 'FULL' | 'CROSS';
@@ -77,9 +143,24 @@ function toIdentifier(sql: postgres.Sql<{}>, col: FColumn<any> | string): postgr
     return sql(typeof col === 'string' ? col : col.name);
 }
 
+function toColumnName(col: FColumn<any> | string): string {
+    return typeof col === 'string' ? col : col.column;
+}
+
 // Helper function to check if a value is an FColumn
 function isColumn(value: any): value is FColumn<any> {
-    return value && typeof value === 'object' && 'name' in value && typeof value.name === 'string';
+    return value && typeof value === 'object' && 'name' in value && 'column' in value && typeof value.name === 'string';
+}
+
+// Helper to serialize geometric types for WHERE clauses
+function serializeValue(value: any): any {
+    if (value instanceof Point || value instanceof Line) {
+        return value.toString();
+    }
+    if (Array.isArray(value)) {
+        return value.map(serializeValue);
+    }
+    return value;
 }
 
 function expressionToSql(sql: postgres.Sql<{}>, expression: FSql): postgres.PendingQuery<any> {
@@ -107,7 +188,7 @@ function expressionToSql(sql: postgres.Sql<{}>, expression: FSql): postgres.Pend
 
     if (expression instanceof FBiColumnSqlType) {
         const column = toIdentifier(sql, expression.left);
-        const value = expression.right;
+        const value = serializeValue(expression.right);
 
         const operatorMap: Record<string, string> = {
             [Equal.name]: '=',
@@ -155,7 +236,13 @@ abstract class QueryBuilder {
         onrejected?: ((err: Error) => never | PromiseLike<never>) | null
     ): Promise<T[]> {
         try {
-            return this.toSql().then(onfulfilled, onrejected);
+            return this.toSql().then(
+                (rows) => {
+                    const deserialized = rows.map(row => this._table._deserializeRow(row));
+                    return onfulfilled ? onfulfilled(deserialized) : deserialized;
+                },
+                onrejected
+            );
         } catch (err) {
             return Promise.reject(err).then(onfulfilled, onrejected);
         }
@@ -181,7 +268,7 @@ class SelectBuilder extends QueryBuilder {
     private _where?: FSql;
     private _groupBy: Array<FColumn<any> | string> = [];
     private _having?: FSql;
-    private _orderBy: Array<{ column: FSql | string; direction: 'ASC' | 'DESC' }> = [];
+    private _orderBy: Array<{ column: FColumn<any> | string; direction: 'ASC' | 'DESC' }> = [];
     private _limit?: number;
     private _offset?: number;
     private _joins: Join[] = [];
@@ -196,7 +283,7 @@ class SelectBuilder extends QueryBuilder {
     where(condition: FSql) { this._where = condition; return this; }
     groupBy(...columns: Array<FColumn<any> | string>) { this._groupBy.push(...columns); return this; }
     having(condition: FSql) { this._having = condition; return this; }
-    orderBy(column: FSql | string, direction: 'ASC' | 'DESC' = 'ASC') { this._orderBy.push({ column, direction }); return this; }
+    orderBy(column: FColumn<any> | string, direction: 'ASC' | 'DESC' = 'ASC') { this._orderBy.push({ column, direction }); return this; }
     limit(limit: number) { this._limit = limit; return this; }
     offset(offset: number) { this._offset = offset; return this; }
     join(type: JoinType, table: FTable, condition?: FSql) { this._joins.push({ type, table, condition }); return this; }
@@ -215,7 +302,7 @@ class SelectBuilder extends QueryBuilder {
         let query;
 
         const selectCols = this._columns.length > 0
-            ? sql.unsafe(this._columns.map(c => typeof c === 'string' ? c : c.name).join(', '))
+            ? sql.unsafe(this._columns.map(c => toColumnName(c)).join(', '))
             : sql`*`;
 
         if (this._distinct) {
@@ -240,7 +327,7 @@ class SelectBuilder extends QueryBuilder {
 
         // GROUP BY clause
         if (this._groupBy.length > 0) {
-            const groupCols = this._groupBy.map(column => typeof column === 'string' ? column : column.name).join(', ');
+            const groupCols = this._groupBy.map(column => toColumnName(column)).join(', ');
 
             query = sql`${query} GROUP BY ${sql.unsafe(groupCols)}`;
         }
@@ -253,7 +340,7 @@ class SelectBuilder extends QueryBuilder {
         // ORDER BY clause
         if (this._orderBy.length > 0) {
             const orderParts = this._orderBy.map(o => {
-                const colName = typeof o.column === 'string' ? o.column : (o.column as any).name;
+                const colName = toColumnName(o.column);
                 return `"${colName}" ${o.direction}`;
             }).join(', ');
 
@@ -282,29 +369,23 @@ class SelectBuilder extends QueryBuilder {
 }
 
 class InsertBuilder extends QueryBuilder {
-    private _values: Array<Record<string, any>> = [];
+    private _values: any;
     private _onConflict?: { target?: string | string[]; action: 'NOTHING' | 'UPDATE'; updateSet?: Record<string, any>; };
     private _returning: Array<FColumn<any> | string> = [];
 
-    constructor(table: FTable, values: Record<string, any> | Array<Record<string, any>>) {
+    constructor(table: FTable, values: any) {
         super(table);
-
-        if (Array.isArray(values)) { 
-            this._values.push(...values);
-        } else {
-            this._values.push(values);
-        }
+        this._values = values;
     }
 
     onConflictDoNothing(target?: string | string[]) { this._onConflict = { target, action: 'NOTHING' }; return this; }
-    onConflictDoUpdate(target: string | string[], updateSet: Record<string, any>) { this._onConflict = { target, action: 'UPDATE', updateSet }; return this; }
+    onConflictDoUpdate(target: string | string[], updateSet: Record<string, any>) { 
+        this._onConflict = { target, action: 'UPDATE', updateSet: this._table._serializeForUpdate(updateSet) }; 
+        return this; 
+    }
     returning(...columns: Array<FColumn<any> | string>) {this._returning.push(...columns); return this; }
 
     toSql(): postgres.PendingQuery<any> {
-        if (this._values.length === 0) {
-            throw new Error('INSERT requires values');
-        }
-
         let sql = this._table._orm._sql;
 
         // INSERT INTO builder
@@ -331,7 +412,7 @@ class InsertBuilder extends QueryBuilder {
 
         // RETURNING builder
         if (this._returning.length > 0) {
-            const colNames = this._returning.map(c => typeof c === 'string' ? c : c.name).join(', ');
+            const colNames = this._returning.map(c => toColumnName(c)).join(', ');
             query = sql`${query} RETURNING ${sql.unsafe(colNames)}`;
         }
 
@@ -340,19 +421,19 @@ class InsertBuilder extends QueryBuilder {
 }
 
 class UpdateBuilder extends QueryBuilder {
-    private _set: Record<string, any> = {};
+    private _set: any;
     private _where?: FSql;
     private _returning: Array<FColumn<any> | string> = [];
 
-    set(values: Record<string, any>) { this._set = { ...this._set, ...values }; return this; }
+    constructor(table: FTable, values: any) {
+        super(table);
+        this._set = values;
+    }
+
     where(condition: FSql) { this._where = condition; return this; }
     returning(...columns: Array<FColumn<any> | string>) { this._returning.push(...columns); return this; }
 
     toSql(): postgres.PendingQuery<any> {
-        if (Object.keys(this._set).length === 0) {
-            throw new Error('UPDATE requires SET');
-        }
-
         let sql = this._table._orm._sql;
 
         let query = sql`UPDATE ${sql.unsafe(this._table.$$name)} SET ${sql(this._set)}`;
@@ -362,7 +443,7 @@ class UpdateBuilder extends QueryBuilder {
         }
 
         if (this._returning.length > 0) {
-            const colNames = this._returning.map(c => typeof c === 'string' ? c : c.name).join(', ');
+            const colNames = this._returning.map(c => toColumnName(c)).join(', ');
             query = sql`${query} RETURNING ${sql.unsafe(colNames)}`;
         }
 
@@ -393,7 +474,7 @@ class DeleteBuilder extends QueryBuilder {
         }
 
         if (this._returning.length > 0) {
-            const colNames = this._returning.map(c => typeof c === 'string' ? c : c.name).join(', ');
+            const colNames = this._returning.map(c => toColumnName(c)).join(', ');
             query = sql`${query} RETURNING ${sql.unsafe(colNames)}`;
         }
 
@@ -403,28 +484,142 @@ class DeleteBuilder extends QueryBuilder {
 
 
 /**********************************************************/
-export interface Users {
+export interface ValidatorTestTable {
     id?: number;
-    name: string;
-    created?: Date;
+    required_integer: number;
+    optional_integer_with_default?: number;
+    required_varchar_maxlength: string;
+    optional_varchar_pattern?: string;
+    required_char_fixed: string;
+    optional_char_with_default?: string;
+    required_text_minlength: string;
+    optional_text_maxlength_pattern?: string;
+    required_uuid: string;
+    optional_uuid_with_default?: string;
+    required_json: any;
+    optional_json_with_default?: any;
+    required_boolean: boolean;
+    optional_boolean_with_default?: boolean;
+    required_numeric: number;
+    optional_numeric_with_default?: number;
+    required_real: number;
+    optional_real_with_default?: number;
+    required_double_precision: number;
+    optional_double_precision_with_default?: number;
+    required_timestamp: Date;
+    optional_timestamp_with_default?: Date;
+    required_date: Date | string;
+    optional_date_with_default?: Date | string;
+    required_time: string;
+    optional_time_with_default?: string;
+    required_enum: 'OPTION_A' | 'OPTION_B' | 'OPTION_C';
+    optional_enum_with_default?: 'LOW' | 'MEDIUM' | 'HIGH';
+    required_point: Point;
+    optional_point_with_default?: Point;
+    required_line: Line;
+    optional_line_with_default?: Line;
+    required_interval: string;
+    optional_interval_with_default?: string;
 }
-export interface Posts {
-    id?: number;
-    author_id: number;
-    created?: Date;
-    text: string;
-}
+
+export type ValidatorTestTableUpdate = Partial<ValidatorTestTable>;
 
 /**********************************************************/
-class UsersTable extends FTable {
-    id: FColumn<number> = { name: "users.id" };
-    name: FColumn<string> = { name: "users.name" };
-    private _pattern_name: RegExp = /^[a-z]+$/i;
-    created: FColumn<Date> = { name: "users.created" };
+class ValidatorTestTableTable extends FTable {
+    id: FColumn<number> = { name: "validator_test_table.id", column: "id" };
+    required_integer: FColumn<number> = { name: "validator_test_table.required_integer", column: "required_integer" };
+    optional_integer_with_default: FColumn<number> = { name: "validator_test_table.optional_integer_with_default", column: "optional_integer_with_default" };
+    required_varchar_maxlength: FColumn<string> = { name: "validator_test_table.required_varchar_maxlength", column: "required_varchar_maxlength" };
+    optional_varchar_pattern: FColumn<string> = { name: "validator_test_table.optional_varchar_pattern", column: "optional_varchar_pattern" };
+    private _pattern_optional_varchar_pattern: RegExp = /^[A-Z0-9]+$/;
+    required_char_fixed: FColumn<string> = { name: "validator_test_table.required_char_fixed", column: "required_char_fixed" };
+    optional_char_with_default: FColumn<string> = { name: "validator_test_table.optional_char_with_default", column: "optional_char_with_default" };
+    required_text_minlength: FColumn<string> = { name: "validator_test_table.required_text_minlength", column: "required_text_minlength" };
+    optional_text_maxlength_pattern: FColumn<string> = { name: "validator_test_table.optional_text_maxlength_pattern", column: "optional_text_maxlength_pattern" };
+    private _pattern_optional_text_maxlength_pattern: RegExp = /^[a-z\s]+$/;
+    required_uuid: FColumn<string> = { name: "validator_test_table.required_uuid", column: "required_uuid" };
+    optional_uuid_with_default: FColumn<string> = { name: "validator_test_table.optional_uuid_with_default", column: "optional_uuid_with_default" };
+    required_json: FColumn<any> = { name: "validator_test_table.required_json", column: "required_json" };
+    optional_json_with_default: FColumn<any> = { name: "validator_test_table.optional_json_with_default", column: "optional_json_with_default" };
+    required_boolean: FColumn<boolean> = { name: "validator_test_table.required_boolean", column: "required_boolean" };
+    optional_boolean_with_default: FColumn<boolean> = { name: "validator_test_table.optional_boolean_with_default", column: "optional_boolean_with_default" };
+    required_numeric: FColumn<number> = { name: "validator_test_table.required_numeric", column: "required_numeric" };
+    optional_numeric_with_default: FColumn<number> = { name: "validator_test_table.optional_numeric_with_default", column: "optional_numeric_with_default" };
+    required_real: FColumn<number> = { name: "validator_test_table.required_real", column: "required_real" };
+    optional_real_with_default: FColumn<number> = { name: "validator_test_table.optional_real_with_default", column: "optional_real_with_default" };
+    required_double_precision: FColumn<number> = { name: "validator_test_table.required_double_precision", column: "required_double_precision" };
+    optional_double_precision_with_default: FColumn<number> = { name: "validator_test_table.optional_double_precision_with_default", column: "optional_double_precision_with_default" };
+    required_timestamp: FColumn<Date> = { name: "validator_test_table.required_timestamp", column: "required_timestamp" };
+    optional_timestamp_with_default: FColumn<Date> = { name: "validator_test_table.optional_timestamp_with_default", column: "optional_timestamp_with_default" };
+    required_date: FColumn<Date | string> = { name: "validator_test_table.required_date", column: "required_date" };
+    optional_date_with_default: FColumn<Date | string> = { name: "validator_test_table.optional_date_with_default", column: "optional_date_with_default" };
+    required_time: FColumn<string> = { name: "validator_test_table.required_time", column: "required_time" };
+    optional_time_with_default: FColumn<string> = { name: "validator_test_table.optional_time_with_default", column: "optional_time_with_default" };
+    required_enum: FColumn<'OPTION_A' | 'OPTION_B' | 'OPTION_C'> = { name: "validator_test_table.required_enum", column: "required_enum" };
+    optional_enum_with_default: FColumn<'LOW' | 'MEDIUM' | 'HIGH'> = { name: "validator_test_table.optional_enum_with_default", column: "optional_enum_with_default" };
+    required_point: FColumn<Point> = { name: "validator_test_table.required_point", column: "required_point" };
+    optional_point_with_default: FColumn<Point> = { name: "validator_test_table.optional_point_with_default", column: "optional_point_with_default" };
+    required_line: FColumn<Line> = { name: "validator_test_table.required_line", column: "required_line" };
+    optional_line_with_default: FColumn<Line> = { name: "validator_test_table.optional_line_with_default", column: "optional_line_with_default" };
+    required_interval: FColumn<string> = { name: "validator_test_table.required_interval", column: "required_interval" };
+    optional_interval_with_default: FColumn<string> = { name: "validator_test_table.optional_interval_with_default", column: "optional_interval_with_default" };
 
     constructor(orm: FlexORM) {
-        super(orm, "users");
+        super(orm, "validator_test_table");
         this._orm = orm;
+    }
+
+    _deserializeRow(row: any): ValidatorTestTable {
+        if (!row) return row;
+        return {
+            ...row,
+            required_point: row.required_point !== null && row.required_point !== undefined 
+                ? Point.fromPostgres(row.required_point) 
+                : row.required_point,
+            optional_point_with_default: row.optional_point_with_default !== null && row.optional_point_with_default !== undefined 
+                ? Point.fromPostgres(row.optional_point_with_default) 
+                : row.optional_point_with_default,
+            required_line: row.required_line !== null && row.required_line !== undefined 
+                ? Line.fromPostgres(row.required_line) 
+                : row.required_line,
+            optional_line_with_default: row.optional_line_with_default !== null && row.optional_line_with_default !== undefined 
+                ? Line.fromPostgres(row.optional_line_with_default) 
+                : row.optional_line_with_default,
+        };
+    }
+
+    _serializeForInsert(values: ValidatorTestTable | Array<ValidatorTestTable>): any {
+        if (Array.isArray(values)) {
+            return values.map(v => this._serializeSingleRow(v));
+        }
+        return this._serializeSingleRow(values);
+    }
+
+    _serializeForUpdate(values: ValidatorTestTableUpdate): any {
+        return this._serializeSingleRow(values);
+    }
+    private _serializeSingleRow(row: any): any {
+        if (!row) return row;
+        
+        return Object.fromEntries(
+            Object.entries(row)
+                .filter(([_, value]) => value !== undefined)
+                .map(([key, value]) => {
+                    if (key === 'required_point') {
+                        return [key, value instanceof Point ? value.toString() : value];
+                    }
+                    if (key === 'optional_point_with_default') {
+                        return [key, value instanceof Point ? value.toString() : value];
+                    }
+                    if (key === 'required_line') {
+                        return [key, value instanceof Line ? value.toString() : value];
+                    }
+                    if (key === 'optional_line_with_default') {
+                        return [key, value instanceof Line ? value.toString() : value];
+                    }
+                    return [key, value];
+                })
+        );
     }
 
     validateInsert(obj: any) {
@@ -436,34 +631,362 @@ class UsersTable extends FTable {
         }
 
 
-        if (obj.name !== undefined && obj.name !== null) {
-
-            if (typeof obj.name !== 'string') {
-                throw new Error("name must be a string");
-            }
-            if (obj.name.length > 64) {
-                throw new Error("name must be at most 64 characters");
-            }
-            if (!this._pattern_name.test(obj.name)) {
-                throw new Error("name does not match required pattern");
+        if (obj.required_integer !== undefined && obj.required_integer !== null) {
+            if (!Number.isInteger(obj.required_integer)) {
+                throw new Error("required_integer must be an integer");
             }
         }
 
-        if (obj.created !== undefined && obj.created !== null) {
-            if (!(obj.created instanceof Date)) {
-                throw new Error("created must be a Date object");
+
+        if (obj.optional_integer_with_default !== undefined && obj.optional_integer_with_default !== null) {
+            if (!Number.isInteger(obj.optional_integer_with_default)) {
+                throw new Error("optional_integer_with_default must be an integer");
             }
         }
+
+
+        if (obj.required_varchar_maxlength !== undefined && obj.required_varchar_maxlength !== null) {
+
+            if (typeof obj.required_varchar_maxlength !== 'string') {
+                throw new Error("required_varchar_maxlength must be a string");
+            }
+            if (obj.required_varchar_maxlength.length > 50) {
+                throw new Error("required_varchar_maxlength must be at most 50 characters");
+            }
+        }
+
+
+        if (obj.optional_varchar_pattern !== undefined && obj.optional_varchar_pattern !== null) {
+
+            if (typeof obj.optional_varchar_pattern !== 'string') {
+                throw new Error("optional_varchar_pattern must be a string");
+            }
+            if (obj.optional_varchar_pattern.length > 20) {
+                throw new Error("optional_varchar_pattern must be at most 20 characters");
+            }
+            if (!this._pattern_optional_varchar_pattern.test(obj.optional_varchar_pattern)) {
+                throw new Error("optional_varchar_pattern does not match required pattern");
+            }
+        }
+
+
+        if (obj.required_char_fixed !== undefined && obj.required_char_fixed !== null) {
+
+            if (typeof obj.required_char_fixed !== 'string') {
+                throw new Error("required_char_fixed must be a string");
+            }
+            if (obj.required_char_fixed.length !== 5) {
+                throw new Error("required_char_fixed must be exactly 5 characters");
+            }
+        }
+
+
+        if (obj.optional_char_with_default !== undefined && obj.optional_char_with_default !== null) {
+
+            if (typeof obj.optional_char_with_default !== 'string') {
+                throw new Error("optional_char_with_default must be a string");
+            }
+            if (obj.optional_char_with_default.length !== 3) {
+                throw new Error("optional_char_with_default must be exactly 3 characters");
+            }
+        }
+
+
+        if (obj.required_text_minlength !== undefined && obj.required_text_minlength !== null) {
+
+            if (typeof obj.required_text_minlength !== 'string') {
+                throw new Error("required_text_minlength must be a string");
+            }
+            if (obj.required_text_minlength.length < 10) {
+                throw new Error("required_text_minlength must be at least 10 characters");
+            }
+        }
+
+        if (obj.optional_text_maxlength_pattern !== undefined && obj.optional_text_maxlength_pattern !== null) {
+
+            if (typeof obj.optional_text_maxlength_pattern !== 'string') {
+                throw new Error("optional_text_maxlength_pattern must be a string");
+            }
+            if (obj.optional_text_maxlength_pattern.length > 100) {
+                throw new Error("optional_text_maxlength_pattern must be at most 100 characters");
+            }
+            if (!this._pattern_optional_text_maxlength_pattern.test(obj.optional_text_maxlength_pattern)) {
+                throw new Error("optional_text_maxlength_pattern does not match required pattern");
+            }
+        }
+
+        if (obj.required_uuid !== undefined && obj.required_uuid !== null) {
+            if (typeof obj.required_uuid !== 'string') {
+                throw new Error("required_uuid must be a string");
+            }
+            if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(obj.required_uuid)) {
+                throw new Error("required_uuid must be a valid UUID");
+            }
+        }
+
+
+
+        if (obj.optional_uuid_with_default !== undefined && obj.optional_uuid_with_default !== null) {
+            if (typeof obj.optional_uuid_with_default !== 'string') {
+                throw new Error("optional_uuid_with_default must be a string");
+            }
+            if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(obj.optional_uuid_with_default)) {
+                throw new Error("optional_uuid_with_default must be a valid UUID");
+            }
+        }
+
+
+
+        if (obj.required_json !== undefined && obj.required_json !== null) {
+            if (typeof obj.required_json === 'string') {
+                try {
+                    JSON.parse(obj.required_json);
+                } catch {
+                    throw new Error("required_json must be a valid JSON string");
+                }
+            } else if (typeof obj.required_json !== 'object') {
+                throw new Error("required_json must be a JSON object or valid JSON string");
+            }
+        }
+
+
+
+
+        if (obj.optional_json_with_default !== undefined && obj.optional_json_with_default !== null) {
+            if (typeof obj.optional_json_with_default === 'string') {
+                try {
+                    JSON.parse(obj.optional_json_with_default);
+                } catch {
+                    throw new Error("optional_json_with_default must be a valid JSON string");
+                }
+            } else if (typeof obj.optional_json_with_default !== 'object') {
+                throw new Error("optional_json_with_default must be a JSON object or valid JSON string");
+            }
+        }
+
+
+
+
+        if (obj.required_boolean !== undefined && obj.required_boolean !== null) {
+            if (typeof obj.required_boolean !== 'boolean') {
+                throw new Error("required_boolean must be a boolean");
+            }
+        }
+
+
+
+        if (obj.optional_boolean_with_default !== undefined && obj.optional_boolean_with_default !== null) {
+            if (typeof obj.optional_boolean_with_default !== 'boolean') {
+                throw new Error("optional_boolean_with_default must be a boolean");
+            }
+        }
+
+
+
+        if (obj.required_numeric !== undefined && obj.required_numeric !== null) {
+            if (!Number.isInteger(obj.required_numeric)) {
+                throw new Error("required_numeric must be an integer");
+            }
+        }
+
+
+        if (obj.optional_numeric_with_default !== undefined && obj.optional_numeric_with_default !== null) {
+            if (!Number.isInteger(obj.optional_numeric_with_default)) {
+                throw new Error("optional_numeric_with_default must be an integer");
+            }
+        }
+
+
+        if (obj.required_real !== undefined && obj.required_real !== null) {
+            if (typeof obj.required_real !== 'number') {
+                throw new Error("required_real must be a number");
+            }
+        }
+
+
+
+        if (obj.optional_real_with_default !== undefined && obj.optional_real_with_default !== null) {
+            if (typeof obj.optional_real_with_default !== 'number') {
+                throw new Error("optional_real_with_default must be a number");
+            }
+        }
+
+
+
+        if (obj.required_double_precision !== undefined && obj.required_double_precision !== null) {
+            if (typeof obj.required_double_precision !== 'number') {
+                throw new Error("required_double_precision must be a number");
+            }
+        }
+
+
+
+        if (obj.optional_double_precision_with_default !== undefined && obj.optional_double_precision_with_default !== null) {
+            if (typeof obj.optional_double_precision_with_default !== 'number') {
+                throw new Error("optional_double_precision_with_default must be a number");
+            }
+        }
+
+
+
+        if (obj.required_timestamp !== undefined && obj.required_timestamp !== null) {
+            if (!(obj.required_timestamp instanceof Date)) {
+                throw new Error("required_timestamp must be a Date object");
+            }
+        }
+
+
+        if (obj.optional_timestamp_with_default !== undefined && obj.optional_timestamp_with_default !== null) {
+            if (!(obj.optional_timestamp_with_default instanceof Date)) {
+                throw new Error("optional_timestamp_with_default must be a Date object");
+            }
+        }
+
+
+        if (obj.required_date !== undefined && obj.required_date !== null) {
+            if (!(obj.required_date instanceof Date) && typeof obj.required_date !== 'string') {
+                throw new Error("required_date must be a Date object or ISO date string");
+            }
+        }
+
+
+
+        if (obj.optional_date_with_default !== undefined && obj.optional_date_with_default !== null) {
+            if (!(obj.optional_date_with_default instanceof Date) && typeof obj.optional_date_with_default !== 'string') {
+                throw new Error("optional_date_with_default must be a Date object or ISO date string");
+            }
+        }
+
+
+
+        if (obj.required_time !== undefined && obj.required_time !== null) {
+            if (typeof obj.required_time !== 'string') {
+                throw new Error("required_time must be a string");
+            }
+        }
+
+
+
+        if (obj.optional_time_with_default !== undefined && obj.optional_time_with_default !== null) {
+            if (typeof obj.optional_time_with_default !== 'string') {
+                throw new Error("optional_time_with_default must be a string");
+            }
+        }
+
+
+
+        if (obj.required_enum !== undefined && obj.required_enum !== null) {
+            if (typeof obj.required_enum !== 'string') {
+                throw new Error("required_enum must be a string");
+            }
+            const validOptions = ["OPTION_A", "OPTION_B", "OPTION_C"];
+            if (!validOptions.includes(obj.required_enum)) {
+                throw new Error("required_enum must be one of: OPTION_A, OPTION_B, OPTION_C");
+            }
+        }
+
+
+
+        if (obj.optional_enum_with_default !== undefined && obj.optional_enum_with_default !== null) {
+            if (typeof obj.optional_enum_with_default !== 'string') {
+                throw new Error("optional_enum_with_default must be a string");
+            }
+            const validOptions = ["LOW", "MEDIUM", "HIGH"];
+            if (!validOptions.includes(obj.optional_enum_with_default)) {
+                throw new Error("optional_enum_with_default must be one of: LOW, MEDIUM, HIGH");
+            }
+        }
+
+
+
+        if (obj.required_point !== undefined && obj.required_point !== null) {
+            if (typeof obj.required_point !== 'object' || obj.required_point.x === undefined || obj.required_point.y === undefined) {
+                throw new Error("required_point must be an object with x and y properties");
+            }
+            if (typeof obj.required_point.x !== 'number' || !isFinite(obj.required_point.x)) {
+                throw new Error("required_point.x must be a finite number");
+            }
+            if (typeof obj.required_point.y !== 'number' || !isFinite(obj.required_point.y)) {
+                throw new Error("required_point.y must be a finite number");
+            }
+        }
+
+
+
+        if (obj.optional_point_with_default !== undefined && obj.optional_point_with_default !== null) {
+            if (typeof obj.optional_point_with_default !== 'object' || obj.optional_point_with_default.x === undefined || obj.optional_point_with_default.y === undefined) {
+                throw new Error("optional_point_with_default must be an object with x and y properties");
+            }
+            if (typeof obj.optional_point_with_default.x !== 'number' || !isFinite(obj.optional_point_with_default.x)) {
+                throw new Error("optional_point_with_default.x must be a finite number");
+            }
+            if (typeof obj.optional_point_with_default.y !== 'number' || !isFinite(obj.optional_point_with_default.y)) {
+                throw new Error("optional_point_with_default.y must be a finite number");
+            }
+        }
+
+
+
+        if (obj.required_line !== undefined && obj.required_line !== null) {
+            if (typeof obj.required_line !== 'object' || obj.required_line.a === undefined || obj.required_line.b === undefined || obj.required_line.c === undefined) {
+                throw new Error("required_line must be an object with a, b, and c properties");
+            }
+            if (typeof obj.required_line.a !== 'number' || !isFinite(obj.required_line.a)) {
+                throw new Error("required_line.a must be a finite number");
+            }
+            if (typeof obj.required_line.b !== 'number' || !isFinite(obj.required_line.b)) {
+                throw new Error("required_line.b must be a finite number");
+            }
+            if (typeof obj.required_line.c !== 'number' || !isFinite(obj.required_line.c)) {
+                throw new Error("required_line.c must be a finite number");
+            }
+        }
+
+
+
+        if (obj.optional_line_with_default !== undefined && obj.optional_line_with_default !== null) {
+            if (typeof obj.optional_line_with_default !== 'object' || obj.optional_line_with_default.a === undefined || obj.optional_line_with_default.b === undefined || obj.optional_line_with_default.c === undefined) {
+                throw new Error("optional_line_with_default must be an object with a, b, and c properties");
+            }
+            if (typeof obj.optional_line_with_default.a !== 'number' || !isFinite(obj.optional_line_with_default.a)) {
+                throw new Error("optional_line_with_default.a must be a finite number");
+            }
+            if (typeof obj.optional_line_with_default.b !== 'number' || !isFinite(obj.optional_line_with_default.b)) {
+                throw new Error("optional_line_with_default.b must be a finite number");
+            }
+            if (typeof obj.optional_line_with_default.c !== 'number' || !isFinite(obj.optional_line_with_default.c)) {
+                throw new Error("optional_line_with_default.c must be a finite number");
+            }
+        }
+
+
+
+        if (obj.required_interval !== undefined && obj.required_interval !== null) {
+            if (typeof obj.required_interval !== 'string') {
+                throw new Error("required_interval must be a string");
+            }
+        }
+
+
+
+        if (obj.optional_interval_with_default !== undefined && obj.optional_interval_with_default !== null) {
+            if (typeof obj.optional_interval_with_default !== 'string') {
+                throw new Error("optional_interval_with_default must be a string");
+            }
+        }
+
 
     }
 
-    insert(values: Users | Array<Users>): InsertBuilder {
+    insert(values: ValidatorTestTable | Array<ValidatorTestTable>): InsertBuilder {
         this.validateInsert(values);
-        return new InsertBuilder(this, values);
+        const serialized = this._serializeForInsert(values);
+        return new InsertBuilder(this, serialized);
     }
 
-    update(): UpdateBuilder {
-        return new UpdateBuilder(this);
+    update(values: ValidatorTestTableUpdate): UpdateBuilder {
+        const serialized = this._serializeForUpdate(values);
+        return new UpdateBuilder(this, serialized);
     }
 
     delete(): DeleteBuilder {
@@ -471,80 +994,16 @@ class UsersTable extends FTable {
     }
 
     select(...columns: Array<FColumn<any> | string>): SelectBuilder {
-        return new SelectBuilder(this, ...columns)
-    }
-}
-class PostsTable extends FTable {
-    id: FColumn<number> = { name: "posts.id" };
-    author_id: FColumn<number> = { name: "posts.author_id" };
-    created: FColumn<Date> = { name: "posts.created" };
-    text: FColumn<string> = { name: "posts.text" };
-
-    constructor(orm: FlexORM) {
-        super(orm, "posts");
-        this._orm = orm;
-    }
-
-    validateInsert(obj: any) {
-
-        if (obj.id !== undefined && obj.id !== null) {
-            if (!Number.isInteger(obj.id)) {
-                throw new Error("id must be an integer");
-            }
-        }
-
-
-        if (obj.author_id !== undefined && obj.author_id !== null) {
-            if (!Number.isInteger(obj.author_id)) {
-                throw new Error("author_id must be an integer");
-            }
-        }
-
-
-        if (obj.created !== undefined && obj.created !== null) {
-            if (!(obj.created instanceof Date)) {
-                throw new Error("created must be a Date object");
-            }
-        }
-
-
-        if (obj.text !== undefined && obj.text !== null) {
-
-            if (typeof obj.text !== 'string') {
-                throw new Error("text must be a string");
-            }
-            if (obj.text.length > 256) {
-                throw new Error("text must be at most 256 characters");
-            }
-        }
-    }
-
-    insert(values: Posts | Array<Posts>): InsertBuilder {
-        this.validateInsert(values);
-        return new InsertBuilder(this, values);
-    }
-
-    update(): UpdateBuilder {
-        return new UpdateBuilder(this);
-    }
-
-    delete(): DeleteBuilder {
-        return new DeleteBuilder(this);
-    }
-
-    select(...columns: Array<FColumn<any> | string>): SelectBuilder {
-        return new SelectBuilder(this, ...columns)
+        return new SelectBuilder(this, ...columns);
     }
 }
 
 export class FlexORM {
     _sql: postgres.Sql<{}>;
-    users: UsersTable;
-    posts: PostsTable;
+    validator_test_table: ValidatorTestTableTable;
 
     constructor(sql: postgres.Sql<{}>) {
         this._sql = sql;
-        this.users = new UsersTable(this);
-        this.posts = new PostsTable(this);
+        this.validator_test_table = new ValidatorTestTableTable(this);
     }
 }

@@ -79,27 +79,30 @@
 - [X] Integrate testing pipeline into GitHub Actions
 
 ### v0.3.0
-- [ ] Add more column types
-  - [ ] smallint
-  - [ ] bigint
-  - [ ] serial
-  - [ ] smallserial
-  - [ ] bigserial
-  - [ ] boolean
-  - [ ] varchar
-  - [ ] char
-  - [ ] numeric
-  - [ ] real
-  - [ ] double precision
-  - [ ] json
-  - [ ] jsonb
-  - [ ] uuid
-  - [ ] time
-  - [ ] date
-  - [ ] interval
-  - [ ] point
-  - [ ] line
-  - [ ] enum
+- [X] Add more column types
+  - [X] smallint
+  - [X] bigint
+  - [X] serial
+  - [X] smallserial
+  - [X] bigserial
+  - [X] boolean
+  - [X] varchar
+  - [X] char
+  - [X] numeric
+  - [X] real
+  - [X] double precision
+  - [X] json
+  - [X] jsonb
+  - [X] uuid
+  - [X] time
+  - [X] date
+  - [X] interval
+  - [X] point
+  - [X] line
+  - [X] enum
+- [ ] Enhance FlexORM Studio with advanced features
+  - [ ] Data visualization, filtering, and sorting
+  - [ ] Edit cells
 
 ### v0.4.0
 - [ ] Add more column types
@@ -130,8 +133,5 @@
   - [ ] MySQL
   - [ ] SQLite
   - [ ] Serverless databases
-- [ ] Enhance FlexORM Studio with advanced features
-  - [ ] Data visualization, filtering, and sorting
-  - [ ] Edit cells
 - [ ] Allow migration scripts to be written in any programming language beyond SQL
 - [ ] Add tests

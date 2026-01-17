@@ -1,3 +1,1 @@
-DROP TABLE posts;
-
-DROP TABLE users;
+DROP TABLE validator_test_table;

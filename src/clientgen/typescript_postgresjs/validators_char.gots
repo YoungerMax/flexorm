@@ -1,0 +1,16 @@
+{{- if .HasDefault}}
+        if (obj.{{.ColName}} !== undefined && obj.{{.ColName}} !== null) {
+{{else}}
+        if (obj.{{.ColName}} === undefined || obj.{{.ColName}} === null) {
+            throw new Error("{{.ColName}} is required");
+        } else {
+{{- end}}
+            if (typeof obj.{{.ColName}} !== 'string') {
+                throw new Error("{{.ColName}} must be a string");
+            }
+{{- if .HasLength}}
+            if (obj.{{.ColName}}.length !== {{.Length}}) {
+                throw new Error("{{.ColName}} must be exactly {{.Length}} characters");
+            }
+{{- end}}
+        }

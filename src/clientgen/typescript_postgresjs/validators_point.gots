@@ -1,0 +1,26 @@
+{{- if .HasDefault}}
+        if (obj.{{.ColName}} !== undefined && obj.{{.ColName}} !== null) {
+            if (typeof obj.{{.ColName}} !== 'object' || obj.{{.ColName}}.x === undefined || obj.{{.ColName}}.y === undefined) {
+                throw new Error("{{.ColName}} must be an object with x and y properties");
+            }
+            if (typeof obj.{{.ColName}}.x !== 'number' || !isFinite(obj.{{.ColName}}.x)) {
+                throw new Error("{{.ColName}}.x must be a finite number");
+            }
+            if (typeof obj.{{.ColName}}.y !== 'number' || !isFinite(obj.{{.ColName}}.y)) {
+                throw new Error("{{.ColName}}.y must be a finite number");
+            }
+        }
+{{else}}
+        if (obj.{{.ColName}} === undefined || obj.{{.ColName}} === null) {
+            throw new Error("{{.ColName}} is required");
+        }
+        if (typeof obj.{{.ColName}} !== 'object' || obj.{{.ColName}}.x === undefined || obj.{{.ColName}}.y === undefined) {
+            throw new Error("{{.ColName}} must be an object with x and y properties");
+        }
+        if (typeof obj.{{.ColName}}.x !== 'number' || !isFinite(obj.{{.ColName}}.x)) {
+            throw new Error("{{.ColName}}.x must be a finite number");
+        }
+        if (typeof obj.{{.ColName}}.y !== 'number' || !isFinite(obj.{{.ColName}}.y)) {
+            throw new Error("{{.ColName}}.y must be a finite number");
+        }
+{{- end}}

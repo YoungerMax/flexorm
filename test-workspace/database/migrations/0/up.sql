@@ -1,11 +1,39 @@
-CREATE TABLE users (
+CREATE TABLE validator_test_table (
   id SERIAL PRIMARY KEY,
-  name TEXT,
-  created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE posts (
-  id SERIAL PRIMARY KEY,
-  created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  text TEXT
+  required_integer INTEGER,
+  optional_integer_with_default INTEGER DEFAULT 42,
+  required_varchar_maxlength VARCHAR(50),
+  optional_varchar_pattern VARCHAR(20) DEFAULT 'DEFAULT123',
+  required_char_fixed CHAR(5),
+  optional_char_with_default CHAR(3) DEFAULT 'ABC',
+  required_text_minlength TEXT,
+  optional_text_maxlength_pattern TEXT DEFAULT 'default text',
+  required_uuid UUID,
+  optional_uuid_with_default UUID DEFAULT '550e8400-e29b-41d4-a716-446655440000',
+  required_json JSON,
+  optional_json_with_default JSON DEFAULT '{"key": "value"}',
+  required_boolean BOOLEAN,
+  optional_boolean_with_default BOOLEAN DEFAULT true,
+  required_numeric NUMERIC,
+  optional_numeric_with_default NUMERIC DEFAULT 123.45,
+  required_real REAL,
+  optional_real_with_default REAL DEFAULT 3.14,
+  required_double_precision DOUBLE PRECISION,
+  optional_double_precision_with_default DOUBLE PRECISION DEFAULT 2.718281828459045,
+  required_timestamp TIMESTAMP,
+  optional_timestamp_with_default TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  required_date DATE,
+  optional_date_with_default DATE DEFAULT '2024-01-01',
+  required_time TIME,
+  optional_time_with_default TIME DEFAULT '12:00:00',
+  required_enum TEXT,
+  optional_enum_with_default TEXT DEFAULT 'MEDIUM',
+  required_point POINT,
+  optional_point_with_default POINT DEFAULT '(0,0)',
+  required_line LINE,
+  optional_line_with_default LINE DEFAULT '{1,0,0}',
+  required_interval INTERVAL,
+  optional_interval_with_default INTERVAL DEFAULT '1 hour 30 minutes',
+  CONSTRAINT validator_test_table_required_enum_check CHECK (required_enum IN ('OPTION_A', 'OPTION_B', 'OPTION_C')),
+  CONSTRAINT validator_test_table_optional_enum_with_default_check CHECK (optional_enum_with_default IN ('LOW', 'MEDIUM', 'HIGH'))
 );

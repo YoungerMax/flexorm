@@ -1,0 +1,27 @@
+{{- if .HasDefault}}
+        if (obj.{{.ColName}} !== undefined && obj.{{.ColName}} !== null) {
+            if (typeof obj.{{.ColName}} === 'string') {
+                try {
+                    JSON.parse(obj.{{.ColName}});
+                } catch {
+                    throw new Error("{{.ColName}} must be a valid JSON string");
+                }
+            } else if (typeof obj.{{.ColName}} !== 'object') {
+                throw new Error("{{.ColName}} must be a JSON object or valid JSON string");
+            }
+        }
+{{else}}
+        if (obj.{{.ColName}} === undefined || obj.{{.ColName}} === null) {
+            throw new Error("{{.ColName}} is required");
+        }
+        if (typeof obj.{{.ColName}} === 'string') {
+            try {
+                JSON.parse(obj.{{.ColName}});
+            } catch {
+                throw new Error("{{.ColName}} must be a valid JSON string");
+            }
+        } else if (typeof obj.{{.ColName}} !== 'object') {
+            throw new Error("{{.ColName}} must be a JSON object or valid JSON string");
+        }
+{{- end}}
+

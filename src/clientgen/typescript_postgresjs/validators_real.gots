@@ -1,0 +1,14 @@
+{{- if .HasDefault}}
+        if (obj.{{.ColName}} !== undefined && obj.{{.ColName}} !== null) {
+            if (typeof obj.{{.ColName}} !== 'number') {
+                throw new Error("{{.ColName}} must be a number");
+            }
+        }
+{{else}}
+        if (obj.{{.ColName}} === undefined || obj.{{.ColName}} === null) {
+            throw new Error("{{.ColName}} is required");
+        }
+        if (typeof obj.{{.ColName}} !== 'number') {
+            throw new Error("{{.ColName}} must be a number");
+        }
+{{- end}}

@@ -37,20 +37,56 @@ func (t Table) GetColumnByName(name string) *Column {
 type ColumnType string
 
 var (
-	Text      ColumnType = "text"
-	Integer   ColumnType = "integer"
-	Timestamp ColumnType = "timestamp"
+	// Numeric types
+	SmallInt   ColumnType = "smallint"
+	Integer    ColumnType = "integer"
+	BigInt     ColumnType = "bigint"
+	Serial     ColumnType = "serial"
+	SmallSerial ColumnType = "smallserial"
+	BigSerial  ColumnType = "bigserial"
+	Numeric    ColumnType = "numeric"
+	Real       ColumnType = "real"
+	DoublePrecision ColumnType = "double precision"
+
+	// String types
+	Char       ColumnType = "char"
+	Varchar    ColumnType = "varchar"
+	Text       ColumnType = "text"
+
+	// Boolean type
+	Boolean    ColumnType = "boolean"
+
+	// JSON types
+	JSON       ColumnType = "json"
+	JSONB      ColumnType = "jsonb"
+
+	// UUID type
+	UUID       ColumnType = "uuid"
+
+	// Date/Time types
+	Date       ColumnType = "date"
+	Time       ColumnType = "time"
+	Timestamp  ColumnType = "timestamp"
+	Interval   ColumnType = "interval"
+
+	// Geometric types
+	Point      ColumnType = "point"
+	Line       ColumnType = "line"
+
+	// Enum type
+	Enum       ColumnType = "enum"
 )
 
 type Column struct {
-	Name       string      `json:"name"`
-	Type       ColumnType  `json:"type"`
-	PrimaryKey bool        `json:"primaryKey"`
-	Default    interface{} `json:"default"`
-	Length     *int        `json:"length"`
-	MinLength  *int        `json:"minLength"`
-	MaxLength  *int        `json:"maxLength"`
-	Pattern    *string     `json:"pattern"`
+	Name        string      `json:"name"`
+	Type        ColumnType  `json:"type"`
+	PrimaryKey  bool        `json:"primaryKey"`
+	Default     interface{} `json:"default"`
+	Length      *int        `json:"length"`
+	MinLength   *int        `json:"minLength"`
+	MaxLength   *int        `json:"maxLength"`
+	Pattern     *string     `json:"pattern"`
+	EnumOptions []string    `json:"enumOptions"`
 }
 
 // Helper Functions

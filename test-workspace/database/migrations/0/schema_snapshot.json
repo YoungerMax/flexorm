@@ -1,7 +1,7 @@
 {
 	"tables": [
 		{
-			"name": "users",
+			"name": "validator_test_table",
 			"columns": [
 				{
 					"name": "id",
@@ -11,62 +11,397 @@
 					"length": null,
 					"minLength": null,
 					"maxLength": null,
-					"pattern": null
+					"pattern": null,
+					"enumOptions": null
 				},
 				{
-					"name": "name",
-					"type": "text",
-					"primaryKey": false,
-					"default": null,
-					"length": null,
-					"minLength": null,
-					"maxLength": 64,
-					"pattern": "/^[a-z]+$/i"
-				},
-				{
-					"name": "created",
-					"type": "timestamp",
-					"primaryKey": false,
-					"default": "now",
-					"length": null,
-					"minLength": null,
-					"maxLength": null,
-					"pattern": null
-				}
-			]
-		},
-		{
-			"name": "posts",
-			"columns": [
-				{
-					"name": "id",
+					"name": "required_integer",
 					"type": "integer",
-					"primaryKey": true,
-					"default": "autoincrement",
+					"primaryKey": false,
+					"default": null,
 					"length": null,
 					"minLength": null,
 					"maxLength": null,
-					"pattern": null
+					"pattern": null,
+					"enumOptions": null
 				},
 				{
-					"name": "created",
+					"name": "optional_integer_with_default",
+					"type": "integer",
+					"primaryKey": false,
+					"default": 42,
+					"length": null,
+					"minLength": null,
+					"maxLength": null,
+					"pattern": null,
+					"enumOptions": null
+				},
+				{
+					"name": "required_varchar_maxlength",
+					"type": "varchar",
+					"primaryKey": false,
+					"default": null,
+					"length": null,
+					"minLength": null,
+					"maxLength": 50,
+					"pattern": null,
+					"enumOptions": null
+				},
+				{
+					"name": "optional_varchar_pattern",
+					"type": "varchar",
+					"primaryKey": false,
+					"default": "DEFAULT123",
+					"length": null,
+					"minLength": null,
+					"maxLength": 20,
+					"pattern": "/^[A-Z0-9]+$/",
+					"enumOptions": null
+				},
+				{
+					"name": "required_char_fixed",
+					"type": "char",
+					"primaryKey": false,
+					"default": null,
+					"length": 5,
+					"minLength": null,
+					"maxLength": null,
+					"pattern": null,
+					"enumOptions": null
+				},
+				{
+					"name": "optional_char_with_default",
+					"type": "char",
+					"primaryKey": false,
+					"default": "ABC",
+					"length": 3,
+					"minLength": null,
+					"maxLength": null,
+					"pattern": null,
+					"enumOptions": null
+				},
+				{
+					"name": "required_text_minlength",
+					"type": "text",
+					"primaryKey": false,
+					"default": null,
+					"length": null,
+					"minLength": 10,
+					"maxLength": null,
+					"pattern": null,
+					"enumOptions": null
+				},
+				{
+					"name": "optional_text_maxlength_pattern",
+					"type": "text",
+					"primaryKey": false,
+					"default": "default text",
+					"length": null,
+					"minLength": null,
+					"maxLength": 100,
+					"pattern": "/^[a-z\\s]+$/",
+					"enumOptions": null
+				},
+				{
+					"name": "required_uuid",
+					"type": "uuid",
+					"primaryKey": false,
+					"default": null,
+					"length": null,
+					"minLength": null,
+					"maxLength": null,
+					"pattern": null,
+					"enumOptions": null
+				},
+				{
+					"name": "optional_uuid_with_default",
+					"type": "uuid",
+					"primaryKey": false,
+					"default": "550e8400-e29b-41d4-a716-446655440000",
+					"length": null,
+					"minLength": null,
+					"maxLength": null,
+					"pattern": null,
+					"enumOptions": null
+				},
+				{
+					"name": "required_json",
+					"type": "json",
+					"primaryKey": false,
+					"default": null,
+					"length": null,
+					"minLength": null,
+					"maxLength": null,
+					"pattern": null,
+					"enumOptions": null
+				},
+				{
+					"name": "optional_json_with_default",
+					"type": "json",
+					"primaryKey": false,
+					"default": "{\"key\": \"value\"}",
+					"length": null,
+					"minLength": null,
+					"maxLength": null,
+					"pattern": null,
+					"enumOptions": null
+				},
+				{
+					"name": "required_boolean",
+					"type": "boolean",
+					"primaryKey": false,
+					"default": null,
+					"length": null,
+					"minLength": null,
+					"maxLength": null,
+					"pattern": null,
+					"enumOptions": null
+				},
+				{
+					"name": "optional_boolean_with_default",
+					"type": "boolean",
+					"primaryKey": false,
+					"default": true,
+					"length": null,
+					"minLength": null,
+					"maxLength": null,
+					"pattern": null,
+					"enumOptions": null
+				},
+				{
+					"name": "required_numeric",
+					"type": "numeric",
+					"primaryKey": false,
+					"default": null,
+					"length": null,
+					"minLength": null,
+					"maxLength": null,
+					"pattern": null,
+					"enumOptions": null
+				},
+				{
+					"name": "optional_numeric_with_default",
+					"type": "numeric",
+					"primaryKey": false,
+					"default": 123.45,
+					"length": null,
+					"minLength": null,
+					"maxLength": null,
+					"pattern": null,
+					"enumOptions": null
+				},
+				{
+					"name": "required_real",
+					"type": "real",
+					"primaryKey": false,
+					"default": null,
+					"length": null,
+					"minLength": null,
+					"maxLength": null,
+					"pattern": null,
+					"enumOptions": null
+				},
+				{
+					"name": "optional_real_with_default",
+					"type": "real",
+					"primaryKey": false,
+					"default": 3.14,
+					"length": null,
+					"minLength": null,
+					"maxLength": null,
+					"pattern": null,
+					"enumOptions": null
+				},
+				{
+					"name": "required_double_precision",
+					"type": "double precision",
+					"primaryKey": false,
+					"default": null,
+					"length": null,
+					"minLength": null,
+					"maxLength": null,
+					"pattern": null,
+					"enumOptions": null
+				},
+				{
+					"name": "optional_double_precision_with_default",
+					"type": "double precision",
+					"primaryKey": false,
+					"default": 2.718281828459045,
+					"length": null,
+					"minLength": null,
+					"maxLength": null,
+					"pattern": null,
+					"enumOptions": null
+				},
+				{
+					"name": "required_timestamp",
+					"type": "timestamp",
+					"primaryKey": false,
+					"default": null,
+					"length": null,
+					"minLength": null,
+					"maxLength": null,
+					"pattern": null,
+					"enumOptions": null
+				},
+				{
+					"name": "optional_timestamp_with_default",
 					"type": "timestamp",
 					"primaryKey": false,
 					"default": "now",
 					"length": null,
 					"minLength": null,
 					"maxLength": null,
-					"pattern": null
+					"pattern": null,
+					"enumOptions": null
 				},
 				{
-					"name": "text",
-					"type": "text",
+					"name": "required_date",
+					"type": "date",
 					"primaryKey": false,
 					"default": null,
 					"length": null,
 					"minLength": null,
-					"maxLength": 256,
-					"pattern": null
+					"maxLength": null,
+					"pattern": null,
+					"enumOptions": null
+				},
+				{
+					"name": "optional_date_with_default",
+					"type": "date",
+					"primaryKey": false,
+					"default": "2024-01-01",
+					"length": null,
+					"minLength": null,
+					"maxLength": null,
+					"pattern": null,
+					"enumOptions": null
+				},
+				{
+					"name": "required_time",
+					"type": "time",
+					"primaryKey": false,
+					"default": null,
+					"length": null,
+					"minLength": null,
+					"maxLength": null,
+					"pattern": null,
+					"enumOptions": null
+				},
+				{
+					"name": "optional_time_with_default",
+					"type": "time",
+					"primaryKey": false,
+					"default": "12:00:00",
+					"length": null,
+					"minLength": null,
+					"maxLength": null,
+					"pattern": null,
+					"enumOptions": null
+				},
+				{
+					"name": "required_enum",
+					"type": "enum",
+					"primaryKey": false,
+					"default": null,
+					"length": null,
+					"minLength": null,
+					"maxLength": null,
+					"pattern": null,
+					"enumOptions": [
+						"OPTION_A",
+						"OPTION_B",
+						"OPTION_C"
+					]
+				},
+				{
+					"name": "optional_enum_with_default",
+					"type": "enum",
+					"primaryKey": false,
+					"default": "MEDIUM",
+					"length": null,
+					"minLength": null,
+					"maxLength": null,
+					"pattern": null,
+					"enumOptions": [
+						"LOW",
+						"MEDIUM",
+						"HIGH"
+					]
+				},
+				{
+					"name": "required_point",
+					"type": "point",
+					"primaryKey": false,
+					"default": null,
+					"length": null,
+					"minLength": null,
+					"maxLength": null,
+					"pattern": null,
+					"enumOptions": null
+				},
+				{
+					"name": "optional_point_with_default",
+					"type": "point",
+					"primaryKey": false,
+					"default": {
+						"x": 0,
+						"y": 0
+					},
+					"length": null,
+					"minLength": null,
+					"maxLength": null,
+					"pattern": null,
+					"enumOptions": null
+				},
+				{
+					"name": "required_line",
+					"type": "line",
+					"primaryKey": false,
+					"default": null,
+					"length": null,
+					"minLength": null,
+					"maxLength": null,
+					"pattern": null,
+					"enumOptions": null
+				},
+				{
+					"name": "optional_line_with_default",
+					"type": "line",
+					"primaryKey": false,
+					"default": {
+						"a": 1,
+						"b": 0,
+						"c": 0
+					},
+					"length": null,
+					"minLength": null,
+					"maxLength": null,
+					"pattern": null,
+					"enumOptions": null
+				},
+				{
+					"name": "required_interval",
+					"type": "interval",
+					"primaryKey": false,
+					"default": null,
+					"length": null,
+					"minLength": null,
+					"maxLength": null,
+					"pattern": null,
+					"enumOptions": null
+				},
+				{
+					"name": "optional_interval_with_default",
+					"type": "interval",
+					"primaryKey": false,
+					"default": "1 hour 30 minutes",
+					"length": null,
+					"minLength": null,
+					"maxLength": null,
+					"pattern": null,
+					"enumOptions": null
 				}
 			]
 		}
