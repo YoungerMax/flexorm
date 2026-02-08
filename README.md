@@ -100,9 +100,7 @@
   - [X] point
   - [X] line
   - [X] enum
-- [ ] Enhance FlexORM Studio with advanced features
-  - [ ] Data visualization, filtering, and sorting
-  - [ ] Edit cells
+- [X] Add Java support
 
 ### v0.4.0
 - [ ] Add more column types
@@ -113,6 +111,9 @@
   - [ ] nullable (default nullable = false)
   - [ ] unique (default unique = false)
 - [ ] Add indexes
+- [ ] Enhance FlexORM Studio with advanced features
+  - [ ] Data visualization, filtering, and sorting
+  - [ ] Edit cells
 
 ### v0.5.0
 - [ ] Implement relations

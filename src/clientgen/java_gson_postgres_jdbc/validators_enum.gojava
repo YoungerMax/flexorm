@@ -1,0 +1,5 @@
+{{- if not (or .Nullable .HasDefault)}}
+        if (obj.{{.ColName}} == null) {
+            throw new IllegalArgumentException("{{.ColName}} is required");
+        }
+{{- end}}

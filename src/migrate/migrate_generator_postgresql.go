@@ -96,16 +96,22 @@ func (g PostgreSQLGenerator) GenerateSQL(diff *SchemaDiff) (upSQL, downSQL strin
 
 func (g PostgreSQLGenerator) generateCreateTable(tableName string, table common.Table) string {
 	var columns []string
+	var primaryKeyColumns []string
 
 	for _, col := range table.Columns {
-		colDef := fmt.Sprintf("  %s %s", col.Name, g.sqlType(col))
+		colDef := fmt.Sprintf("  %s %s", g.quoteIdentifier(col.Name), g.sqlType(col))
 
 		if col.PrimaryKey {
-			colDef += " PRIMARY KEY"
+			primaryKeyColumns = append(primaryKeyColumns, g.quoteIdentifier(col.Name))
 		}
 
 		if col.Default != nil && !col.PrimaryKey {
 			colDef += g.formatDefault(col)
+		}
+
+		// Add NOT NULL constraint if column is not nullable
+		if !col.Nullable {
+			colDef += " NOT NULL"
 		}
 
 		columns = append(columns, colDef)
@@ -115,9 +121,15 @@ func (g PostgreSQLGenerator) generateCreateTable(tableName string, table common.
 	var constraints []string
 	for _, col := range table.Columns {
 		if col.Type == common.Enum && len(col.EnumOptions) > 0 {
-			constraint := g.generateEnumCheckConstraint(tableName, col.Name, col.EnumOptions)
+			constraint := g.generateEnumCheckConstraint(tableName, g.quoteIdentifier(col.Name), col.EnumOptions)
 			constraints = append(constraints, constraint)
 		}
+	}
+
+	// Add composite primary key constraint if there are primary key columns
+	if len(primaryKeyColumns) > 0 {
+		pkConstraint := fmt.Sprintf("  PRIMARY KEY (%s)", strings.Join(primaryKeyColumns, ", "))
+		constraints = append(constraints, pkConstraint)
 	}
 
 	// Combine columns and constraints
@@ -126,43 +138,50 @@ func (g PostgreSQLGenerator) generateCreateTable(tableName string, table common.
 		allDefs = append(allDefs, constraints...)
 	}
 
-	return fmt.Sprintf("CREATE TABLE %s (\n%s\n);", tableName, strings.Join(allDefs, ",\n"))
+	return fmt.Sprintf("CREATE TABLE %s (\n%s\n);", g.quoteIdentifier(tableName), strings.Join(allDefs, ",\n"))
 }
 
 func (g PostgreSQLGenerator) generateDropTable(tableName string) string {
-	return fmt.Sprintf("DROP TABLE %s;", tableName)
+	return fmt.Sprintf("DROP TABLE %s;", g.quoteIdentifier(tableName))
 }
 
 func (g PostgreSQLGenerator) generateAddColumn(tableName, columnName string, column common.Column) string {
-	colDef := fmt.Sprintf("%s %s", columnName, g.sqlType(column))
+	colDef := fmt.Sprintf("%s %s", g.quoteIdentifier(columnName), g.sqlType(column))
 	if column.Default != nil {
 		colDef += g.formatDefault(column)
 	}
-	return fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s;", tableName, colDef)
+
+	// Add NOT NULL constraint if column is not nullable
+	if !column.Nullable {
+		colDef += " NOT NULL"
+	}
+
+	return fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s;", g.quoteIdentifier(tableName), colDef)
 }
 
 func (g PostgreSQLGenerator) generateDropColumn(tableName, columnName string) string {
-	return fmt.Sprintf("ALTER TABLE %s DROP COLUMN %s;", tableName, columnName)
+	return fmt.Sprintf("ALTER TABLE %s DROP COLUMN %s;", g.quoteIdentifier(tableName), g.quoteIdentifier(columnName))
 }
 
 func (g PostgreSQLGenerator) generateAlterColumn(tableName, columnName string, oldColumn, newColumn common.Column) string {
 	var statements []string
+	quotedColumnName := g.quoteIdentifier(columnName)
 
 	if oldColumn.Type != newColumn.Type {
 		statements = append(statements,
 			fmt.Sprintf("ALTER TABLE %s ALTER COLUMN %s TYPE %s;",
-				tableName, columnName, g.sqlType(newColumn)))
+				g.quoteIdentifier(tableName), quotedColumnName, g.sqlType(newColumn)))
 	}
 
 	if oldColumn.Default != newColumn.Default {
 		if newColumn.Default != nil {
 			statements = append(statements,
 				fmt.Sprintf("ALTER TABLE %s ALTER COLUMN %s SET%s;",
-					tableName, columnName, g.formatDefault(newColumn)))
+					g.quoteIdentifier(tableName), quotedColumnName, g.formatDefault(newColumn)))
 		} else {
 			statements = append(statements,
 				fmt.Sprintf("ALTER TABLE %s ALTER COLUMN %s DROP DEFAULT;",
-					tableName, columnName))
+					g.quoteIdentifier(tableName), quotedColumnName))
 		}
 	}
 
@@ -290,4 +309,8 @@ func (g PostgreSQLGenerator) isInSlice(colType common.ColumnType, slice []common
 		}
 	}
 	return false
+}
+
+func (g PostgreSQLGenerator) quoteIdentifier(name string) string {
+	return fmt.Sprintf("\"%s\"", name)
 }

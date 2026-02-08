@@ -1,0 +1,32 @@
+{{- if or .Nullable .HasDefault}}
+        if (obj.{{.ColName}} != null) {
+{{else}}
+        if (obj.{{.ColName}} == null) {
+            throw new IllegalArgumentException("{{.ColName}} is required");
+        } else {
+{{- end}}
+            if (!(obj.{{.ColName}} instanceof String)) {
+                throw new IllegalArgumentException("{{.ColName}} must be a String");
+            }
+{{- if .HasLength}}
+            if (((String) obj.{{.ColName}}).length() != {{.Length}}) {
+                throw new IllegalArgumentException("{{.ColName}} must be exactly {{.Length}} characters");
+            }
+{{else}}
+{{- if .HasMinLength}}
+            if (((String) obj.{{.ColName}}).length() < {{.MinLength}}) {
+                throw new IllegalArgumentException("{{.ColName}} must be at least {{.MinLength}} characters");
+            }
+{{- end}}
+{{- if .HasMaxLength}}
+            if (((String) obj.{{.ColName}}).length() > {{.MaxLength}}) {
+                throw new IllegalArgumentException("{{.ColName}} must be at most {{.MaxLength}} characters");
+            }
+{{- end}}
+{{- end}}
+{{- if .HasPattern}}
+            if (!_pattern_{{.ColName}}.matcher((String) obj.{{.ColName}}).matches()) {
+                throw new IllegalArgumentException("{{.ColName}} does not match required pattern");
+            }
+{{- end}}
+        }

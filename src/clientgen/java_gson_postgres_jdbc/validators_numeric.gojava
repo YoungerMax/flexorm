@@ -1,0 +1,11 @@
+{{- if or .IsAutoIncrement .Nullable .HasDefault}}
+        if (obj.{{.ColName}} != null) {
+{{else}}
+        if (obj.{{.ColName}} == null) {
+            throw new IllegalArgumentException("{{.ColName}} is required");
+        } else {
+{{- end}}
+            if (!(obj.{{.ColName}} instanceof {{.FieldClass}})) {
+                throw new IllegalArgumentException("{{.ColName}} must be a {{.FieldClass}}");
+            }
+        }

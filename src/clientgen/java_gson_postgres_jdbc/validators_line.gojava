@@ -1,0 +1,14 @@
+{{- if or .Nullable .HasDefault}}
+        if (obj.{{.ColName}} != null) {
+            if (!(obj.{{.ColName}} instanceof Line)) {
+                throw new IllegalArgumentException("{{.ColName}} must be a Line");
+            }
+        }
+{{else}}
+        if (obj.{{.ColName}} == null) {
+            throw new IllegalArgumentException("{{.ColName}} is required");
+        }
+        if (!(obj.{{.ColName}} instanceof Line)) {
+            throw new IllegalArgumentException("{{.ColName}} must be a Line");
+        }
+{{- end}}

@@ -1,4 +1,4 @@
-package typescript_postgresjs
+package java_gson_postgres_jdbc
 
 import (
 	_ "embed"
@@ -8,60 +8,60 @@ import (
 	"text/template"
 )
 
-//go:embed template.gots
+//go:embed template.gojava
 var coreTmpl string
 
-//go:embed validators_text.gots
+//go:embed validators_text.gojava
 var validatorsTextTmpl string
 
-//go:embed validators_integer.gots
+//go:embed validators_integer.gojava
 var validatorsIntegerTmpl string
 
-//go:embed validators_timestamp.gots
+//go:embed validators_timestamp.gojava
 var validatorsTimestampTmpl string
 
-//go:embed validators_boolean.gots
+//go:embed validators_boolean.gojava
 var validatorsBooleanTmpl string
 
-//go:embed validators_real.gots
+//go:embed validators_real.gojava
 var validatorsRealTmpl string
 
-//go:embed validators_double_precision.gots
+//go:embed validators_double_precision.gojava
 var validatorsDoublePrecisionTmpl string
 
-//go:embed validators_varchar.gots
+//go:embed validators_varchar.gojava
 var validatorsVarcharTmpl string
 
-//go:embed validators_char.gots
+//go:embed validators_char.gojava
 var validatorsCharTmpl string
 
-//go:embed validators_json.gots
+//go:embed validators_json.gojava
 var validatorsJsonTmpl string
 
-//go:embed validators_uuid.gots
+//go:embed validators_uuid.gojava
 var validatorsUuidTmpl string
 
-//go:embed validators_date.gots
+//go:embed validators_date.gojava
 var validatorsDateTmpl string
 
-//go:embed validators_time.gots
+//go:embed validators_time.gojava
 var validatorsTimeTmpl string
 
-//go:embed validators_interval.gots
+//go:embed validators_interval.gojava
 var validatorsIntervalTmpl string
 
-//go:embed validators_point.gots
+//go:embed validators_point.gojava
 var validatorsPointTmpl string
 
-//go:embed validators_line.gots
+//go:embed validators_line.gojava
 var validatorsLineTmpl string
 
-//go:embed validators_enum.gots
+//go:embed validators_enum.gojava
 var validatorsEnumTmpl string
 
-// TypeMapping holds the TypeScript type and its validator template together
+// TypeMapping holds the Java type and its validator template together
 type TypeMapping struct {
-	TSType            string
+	JavaType          string
 	ValidatorTemplate *template.Template
 	BuildValidator    func(colName string, col common.Column) map[string]interface{}
 }
@@ -71,11 +71,15 @@ var coreTemplate *template.Template
 
 func initializeTypeMappings() {
 	funcMap := template.FuncMap{
-		"typescriptName":       typescriptName,
-		"typescriptType":       typescriptType,
-		"typescriptTypeColumn": typescriptTypeColumn,
-		"typescriptTableName":  typescriptTableName,
-		"renderValidator":      renderValidator,
+		"javaClassName":      javaClassName,
+		"javaType":           javaType,
+		"javaTypeColumn":     javaTypeColumn,
+		"javaFieldName":      javaFieldName,
+		"javaTableClassName": javaTableClassName,
+		"renderValidator":    renderValidator,
+		"javaIsPrimitive":    javaIsPrimitive,
+		"javaBoxedType":      javaBoxedType,
+		"genEnumValues":      genEnumValues,
 	}
 
 	mustParse := func(name, tmpl string) *template.Template {
@@ -85,14 +89,14 @@ func initializeTypeMappings() {
 	typeMappings = map[common.ColumnType]*TypeMapping{
 		// String types
 		common.Text: {
-			TSType:            "string",
+			JavaType:          "String",
 			ValidatorTemplate: mustParse("validators_text", validatorsTextTmpl),
 			BuildValidator: func(colName string, col common.Column) map[string]interface{} {
 				return map[string]interface{}{
 					"ColName":      colName,
-					"Column":       col,
+					"FieldClass":   "String",
 					"Nullable":     col.Nullable,
-					"HasDefault":   col.Default != "",
+					"HasDefault":   col.Default != "" && col.Default != nil,
 					"HasLength":    col.Length != nil && *col.Length > 0,
 					"Length":       col.Length,
 					"HasMinLength": col.MinLength != nil && *col.MinLength > 0,
@@ -100,33 +104,35 @@ func initializeTypeMappings() {
 					"HasMaxLength": col.MaxLength != nil && *col.MaxLength > 0,
 					"MaxLength":    col.MaxLength,
 					"HasPattern":   col.Pattern != nil && *col.Pattern != "",
+					"Pattern":      col.Pattern,
 				}
 			},
 		},
 		common.Varchar: {
-			TSType:            "string",
+			JavaType:          "String",
 			ValidatorTemplate: mustParse("validators_varchar", validatorsVarcharTmpl),
 			BuildValidator: func(colName string, col common.Column) map[string]interface{} {
 				return map[string]interface{}{
 					"ColName":      colName,
-					"Column":       col,
+					"FieldClass":   "String",
 					"Nullable":     col.Nullable,
-					"HasDefault":   col.Default != "",
+					"HasDefault":   col.Default != "" && col.Default != nil,
 					"HasMaxLength": col.MaxLength != nil && *col.MaxLength > 0,
 					"MaxLength":    col.MaxLength,
 					"HasPattern":   col.Pattern != nil && *col.Pattern != "",
+					"Pattern":      col.Pattern,
 				}
 			},
 		},
 		common.Char: {
-			TSType:            "string",
+			JavaType:          "String",
 			ValidatorTemplate: mustParse("validators_char", validatorsCharTmpl),
 			BuildValidator: func(colName string, col common.Column) map[string]interface{} {
 				return map[string]interface{}{
 					"ColName":    colName,
-					"Column":     col,
+					"FieldClass": "String",
 					"Nullable":   col.Nullable,
-					"HasDefault": col.Default != "",
+					"HasDefault": col.Default != "" && col.Default != nil,
 					"HasLength":  col.Length != nil && *col.Length > 0,
 					"Length":     col.Length,
 				}
@@ -135,51 +141,51 @@ func initializeTypeMappings() {
 
 		// Numeric types
 		common.SmallInt: {
-			TSType:            "number",
+			JavaType:          "Short",
 			ValidatorTemplate: mustParse("validators_integer", validatorsIntegerTmpl),
 			BuildValidator: func(colName string, col common.Column) map[string]interface{} {
 				return map[string]interface{}{
 					"ColName":         colName,
-					"Column":          col,
+					"FieldClass":      "Short",
 					"Nullable":        col.Nullable,
-					"IsAutoIncrement": col.Default == "autoincrement",
-					"HasDefault":      col.Default != "",
+					"IsAutoIncrement": isAutoIncrement(col.Default),
+					"HasDefault":      col.Default != "" && col.Default != nil,
 				}
 			},
 		},
 		common.Integer: {
-			TSType:            "number",
+			JavaType:          "Integer",
 			ValidatorTemplate: mustParse("validators_integer", validatorsIntegerTmpl),
 			BuildValidator: func(colName string, col common.Column) map[string]interface{} {
 				return map[string]interface{}{
 					"ColName":         colName,
-					"Column":          col,
+					"FieldClass":      "Integer",
 					"Nullable":        col.Nullable,
-					"IsAutoIncrement": col.Default == "autoincrement",
-					"HasDefault":      col.Default != "",
+					"IsAutoIncrement": isAutoIncrement(col.Default),
+					"HasDefault":      col.Default != "" && col.Default != nil,
 				}
 			},
 		},
 		common.BigInt: {
-			TSType:            "number",
+			JavaType:          "Long",
 			ValidatorTemplate: mustParse("validators_integer", validatorsIntegerTmpl),
 			BuildValidator: func(colName string, col common.Column) map[string]interface{} {
 				return map[string]interface{}{
 					"ColName":         colName,
-					"Column":          col,
+					"FieldClass":      "Long",
 					"Nullable":        col.Nullable,
-					"IsAutoIncrement": col.Default == "autoincrement",
-					"HasDefault":      col.Default != "",
+					"IsAutoIncrement": isAutoIncrement(col.Default),
+					"HasDefault":      col.Default != "" && col.Default != nil,
 				}
 			},
 		},
 		common.Serial: {
-			TSType:            "number",
+			JavaType:          "Integer",
 			ValidatorTemplate: mustParse("validators_integer", validatorsIntegerTmpl),
 			BuildValidator: func(colName string, col common.Column) map[string]interface{} {
 				return map[string]interface{}{
 					"ColName":         colName,
-					"Column":          col,
+					"FieldClass":      "Integer",
 					"Nullable":        col.Nullable,
 					"IsAutoIncrement": true,
 					"HasDefault":      true,
@@ -187,12 +193,12 @@ func initializeTypeMappings() {
 			},
 		},
 		common.SmallSerial: {
-			TSType:            "number",
+			JavaType:          "Short",
 			ValidatorTemplate: mustParse("validators_integer", validatorsIntegerTmpl),
 			BuildValidator: func(colName string, col common.Column) map[string]interface{} {
 				return map[string]interface{}{
 					"ColName":         colName,
-					"Column":          col,
+					"FieldClass":      "Short",
 					"Nullable":        col.Nullable,
 					"IsAutoIncrement": true,
 					"HasDefault":      true,
@@ -200,12 +206,12 @@ func initializeTypeMappings() {
 			},
 		},
 		common.BigSerial: {
-			TSType:            "number",
+			JavaType:          "Long",
 			ValidatorTemplate: mustParse("validators_integer", validatorsIntegerTmpl),
 			BuildValidator: func(colName string, col common.Column) map[string]interface{} {
 				return map[string]interface{}{
 					"ColName":         colName,
-					"Column":          col,
+					"FieldClass":      "Long",
 					"Nullable":        col.Nullable,
 					"IsAutoIncrement": true,
 					"HasDefault":      true,
@@ -213,182 +219,180 @@ func initializeTypeMappings() {
 			},
 		},
 		common.Numeric: {
-			TSType:            "number",
-			ValidatorTemplate: mustParse("validators_integer", validatorsIntegerTmpl),
+			JavaType:          "java.math.BigDecimal",
+			ValidatorTemplate: mustParse("validators_numeric", validatorsRealTmpl),
 			BuildValidator: func(colName string, col common.Column) map[string]interface{} {
 				return map[string]interface{}{
 					"ColName":    colName,
-					"Column":     col,
+					"FieldClass": "java.math.BigDecimal",
 					"Nullable":   col.Nullable,
-					"HasDefault": col.Default != "",
+					"HasDefault": col.Default != "" && col.Default != nil,
 				}
 			},
 		},
 		common.Real: {
-			TSType:            "number",
+			JavaType:          "Float",
 			ValidatorTemplate: mustParse("validators_real", validatorsRealTmpl),
 			BuildValidator: func(colName string, col common.Column) map[string]interface{} {
 				return map[string]interface{}{
 					"ColName":    colName,
-					"Column":     col,
+					"FieldClass": "Float",
 					"Nullable":   col.Nullable,
-					"HasDefault": col.Default != "",
+					"HasDefault": col.Default != "" && col.Default != nil,
 				}
 			},
 		},
 		common.DoublePrecision: {
-			TSType:            "number",
+			JavaType:          "Double",
 			ValidatorTemplate: mustParse("validators_double_precision", validatorsDoublePrecisionTmpl),
 			BuildValidator: func(colName string, col common.Column) map[string]interface{} {
 				return map[string]interface{}{
 					"ColName":    colName,
-					"Column":     col,
+					"FieldClass": "Double",
 					"Nullable":   col.Nullable,
-					"HasDefault": col.Default != "",
+					"HasDefault": col.Default != "" && col.Default != nil,
 				}
 			},
 		},
 
 		// Boolean type
 		common.Boolean: {
-			TSType:            "boolean",
+			JavaType:          "Boolean",
 			ValidatorTemplate: mustParse("validators_boolean", validatorsBooleanTmpl),
 			BuildValidator: func(colName string, col common.Column) map[string]interface{} {
 				return map[string]interface{}{
 					"ColName":    colName,
-					"Column":     col,
+					"FieldClass": "Boolean",
 					"Nullable":   col.Nullable,
-					"HasDefault": col.Default != "",
+					"HasDefault": col.Default != "" && col.Default != nil,
 				}
 			},
 		},
 
 		// JSON types
 		common.JSON: {
-			TSType:            "any",
+			JavaType:          "com.google.gson.JsonElement",
 			ValidatorTemplate: mustParse("validators_json", validatorsJsonTmpl),
 			BuildValidator: func(colName string, col common.Column) map[string]interface{} {
 				return map[string]interface{}{
 					"ColName":    colName,
-					"Column":     col,
-					"Nullable":   col.Nullable,
-					"HasDefault": col.Default != "",
+					"FieldClass": "com.google.gson.JsonElement",
+					"HasDefault": col.Default != "" && col.Default != nil,
 				}
 			},
 		},
 		common.JSONB: {
-			TSType:            "any",
+			JavaType:          "com.google.gson.JsonElement",
 			ValidatorTemplate: mustParse("validators_json", validatorsJsonTmpl),
 			BuildValidator: func(colName string, col common.Column) map[string]interface{} {
 				return map[string]interface{}{
 					"ColName":    colName,
-					"Column":     col,
-					"Nullable":   col.Nullable,
-					"HasDefault": col.Default != "",
+					"FieldClass": "com.google.gson.JsonElement",
+					"HasDefault": col.Default != "" && col.Default != nil,
 				}
 			},
 		},
 
 		// UUID type
 		common.UUID: {
-			TSType:            "string",
+			JavaType:          "java.util.UUID",
 			ValidatorTemplate: mustParse("validators_uuid", validatorsUuidTmpl),
 			BuildValidator: func(colName string, col common.Column) map[string]interface{} {
 				return map[string]interface{}{
 					"ColName":    colName,
-					"Column":     col,
+					"FieldClass": "java.util.UUID",
 					"Nullable":   col.Nullable,
-					"HasDefault": col.Default != "",
+					"HasDefault": col.Default != "" && col.Default != nil,
 				}
 			},
 		},
 
 		// Date/Time types
 		common.Date: {
-			TSType:            "Date | string",
+			JavaType:          "java.time.LocalDate",
 			ValidatorTemplate: mustParse("validators_date", validatorsDateTmpl),
 			BuildValidator: func(colName string, col common.Column) map[string]interface{} {
 				return map[string]interface{}{
 					"ColName":    colName,
-					"Column":     col,
+					"FieldClass": "java.time.LocalDate",
 					"Nullable":   col.Nullable,
-					"HasDefault": col.Default != "",
+					"HasDefault": col.Default != "" && col.Default != nil,
 				}
 			},
 		},
 		common.Time: {
-			TSType:            "string",
+			JavaType:          "java.time.LocalTime",
 			ValidatorTemplate: mustParse("validators_time", validatorsTimeTmpl),
 			BuildValidator: func(colName string, col common.Column) map[string]interface{} {
 				return map[string]interface{}{
 					"ColName":    colName,
-					"Column":     col,
+					"FieldClass": "java.time.LocalTime",
 					"Nullable":   col.Nullable,
-					"HasDefault": col.Default != "",
+					"HasDefault": col.Default != "" && col.Default != nil,
 				}
 			},
 		},
 		common.Timestamp: {
-			TSType:            "Date",
+			JavaType:          "java.time.Instant",
 			ValidatorTemplate: mustParse("validators_timestamp", validatorsTimestampTmpl),
 			BuildValidator: func(colName string, col common.Column) map[string]interface{} {
 				return map[string]interface{}{
 					"ColName":    colName,
-					"Column":     col,
+					"FieldClass": "java.time.Instant",
 					"Nullable":   col.Nullable,
-					"HasDefault": col.Default != "",
+					"HasDefault": col.Default != "" && col.Default != nil,
 				}
 			},
 		},
 		common.Interval: {
-			TSType:            "string",
+			JavaType:          "String",
 			ValidatorTemplate: mustParse("validators_interval", validatorsIntervalTmpl),
 			BuildValidator: func(colName string, col common.Column) map[string]interface{} {
 				return map[string]interface{}{
 					"ColName":    colName,
-					"Column":     col,
+					"FieldClass": "String",
 					"Nullable":   col.Nullable,
-					"HasDefault": col.Default != "",
+					"HasDefault": col.Default != "" && col.Default != nil,
 				}
 			},
 		},
 
 		// Geometric types
 		common.Point: {
-			TSType:            "Point",
+			JavaType:          "Point",
 			ValidatorTemplate: mustParse("validators_point", validatorsPointTmpl),
 			BuildValidator: func(colName string, col common.Column) map[string]interface{} {
 				return map[string]interface{}{
 					"ColName":    colName,
-					"Column":     col,
+					"FieldClass": "Point",
 					"Nullable":   col.Nullable,
-					"HasDefault": col.Default != "",
+					"HasDefault": col.Default != "" && col.Default != nil,
 				}
 			},
 		},
 		common.Line: {
-			TSType:            "Line",
+			JavaType:          "Line",
 			ValidatorTemplate: mustParse("validators_line", validatorsLineTmpl),
 			BuildValidator: func(colName string, col common.Column) map[string]interface{} {
 				return map[string]interface{}{
 					"ColName":    colName,
-					"Column":     col,
+					"FieldClass": "Line",
 					"Nullable":   col.Nullable,
-					"HasDefault": col.Default != "",
+					"HasDefault": col.Default != "" && col.Default != nil,
 				}
 			},
 		},
 
 		// Enum type
 		common.Enum: {
-			TSType:            "string",
+			JavaType:          "String",
 			ValidatorTemplate: mustParse("validators_enum", validatorsEnumTmpl),
 			BuildValidator: func(colName string, col common.Column) map[string]interface{} {
 				return map[string]interface{}{
 					"ColName":        colName,
-					"Column":         col,
+					"FieldClass":     "String",
 					"Nullable":       col.Nullable,
-					"HasDefault":     col.Default != "",
+					"HasDefault":     col.Default != "" && col.Default != nil,
 					"HasEnumOptions": len(col.EnumOptions) > 0,
 					"EnumOptions":    col.EnumOptions,
 				}
@@ -401,29 +405,56 @@ func initializeTypeMappings() {
 
 func Emit(schema common.Schema, w io.Writer) error {
 	initializeTypeMappings()
-
 	return coreTemplate.Execute(w, schema)
 }
 
-func typescriptType(dbType common.ColumnType) string {
-	if mapping, exists := typeMappings[dbType]; exists {
-		return mapping.TSType
+func isAutoIncrement(defaultValue interface{}) bool {
+	if str, ok := defaultValue.(string); ok {
+		return str == "autoincrement"
 	}
-	return "any"
+	return false
 }
 
-func typescriptTypeColumn(column common.Column) string {
-	// Special handling for enum types to generate union types
-	if column.Type == common.Enum && len(column.EnumOptions) > 0 {
-		var opts []string
-		for _, opt := range column.EnumOptions {
-			opts = append(opts, "'"+opt+"'")
-		}
-		return strings.Join(opts, " | ")
+func javaType(dbType common.ColumnType) string {
+	if mapping, exists := typeMappings[dbType]; exists {
+		return mapping.JavaType
 	}
+	return "Object"
+}
 
-	// Fall back to regular type mapping for non-enum types
-	return typescriptType(column.Type)
+func javaIsPrimitive(javaType string) bool {
+	switch javaType {
+	case "short", "int", "long", "double", "float", "boolean":
+		return true
+	default:
+		return false
+	}
+}
+
+func javaBoxedType(javaType string) string {
+	switch javaType {
+	case "short":
+		return "Short"
+	case "int":
+		return "Integer"
+	case "long":
+		return "Long"
+	case "double":
+		return "Double"
+	case "float":
+		return "Float"
+	case "boolean":
+		return "Boolean"
+	default:
+		return javaType
+	}
+}
+
+func javaTypeColumn(table common.Table, column common.Column) string {
+	if column.Type == common.Enum && len(column.EnumOptions) > 0 {
+		return javaClassName(table.Name) + "." + javaClassName(column.Name)
+	}
+	return javaType(column.Type)
 }
 
 func renderValidator(column common.Column) string {
@@ -439,7 +470,7 @@ func renderValidator(column common.Column) string {
 	return buf.String()
 }
 
-func typescriptName(schemaTableName string) string {
+func javaClassName(schemaTableName string) string {
 	if schemaTableName == "" {
 		return ""
 	}
@@ -460,6 +491,52 @@ func typescriptName(schemaTableName string) string {
 	return result.String()
 }
 
-func typescriptTableName(schemaTableName string) string {
-	return typescriptName(schemaTableName) + "Table"
+func javaFieldName(schemaColumnName string) string {
+	if schemaColumnName == "" {
+		return ""
+	}
+
+	parts := strings.Split(schemaColumnName, "_")
+
+	if len(parts) == 0 {
+		return ""
+	}
+
+	// First part is lowercase
+	var result strings.Builder
+	result.WriteString(strings.ToLower(parts[0]))
+
+	// Subsequent parts are capitalized
+	for i := 1; i < len(parts); i++ {
+		part := parts[i]
+		if part == "" {
+			continue
+		}
+		result.WriteString(strings.ToUpper(part[:1]))
+		if len(part) > 1 {
+			result.WriteString(strings.ToLower(part[1:]))
+		}
+	}
+
+	return result.String()
+}
+
+func javaTableClassName(schemaTableName string) string {
+	return javaClassName(schemaTableName) + "Table"
+}
+
+func genEnumValues(col common.Column) string {
+	var result strings.Builder
+
+	for i, opt := range col.EnumOptions {
+		result.WriteString(opt)
+
+		if i == len(col.EnumOptions)-1 {
+			result.WriteString(";\n")
+		} else {
+			result.WriteString(",\n")
+		}
+	}
+
+	return result.String()
 }

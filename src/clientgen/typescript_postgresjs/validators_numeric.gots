@@ -1,4 +1,4 @@
-{{- if or .IsAutoIncrement .HasDefault}}
+{{- if or .IsAutoIncrement .Nullable .HasDefault}}
         if (obj.{{.ColName}} !== undefined && obj.{{.ColName}} !== null) {
             if (typeof obj.{{.ColName}} !== 'number') {
                 throw new Error("{{.ColName}} must be a number");

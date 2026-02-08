@@ -1,4 +1,4 @@
-{{- if .HasDefault}}
+{{- if or .Nullable .HasDefault}}
         if (obj.{{.ColName}} !== undefined && obj.{{.ColName}} !== null) {
             if (typeof obj.{{.ColName}} !== 'object' || obj.{{.ColName}}.x === undefined || obj.{{.ColName}}.y === undefined) {
                 throw new Error("{{.ColName}} must be an object with x and y properties");

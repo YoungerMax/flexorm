@@ -1,4 +1,4 @@
-{{- if .HasDefault}}
+{{- if or .Nullable .HasDefault}}
         if (obj.{{.ColName}} !== undefined && obj.{{.ColName}} !== null) {
 {{else}}
         if (obj.{{.ColName}} === undefined || obj.{{.ColName}} === null) {

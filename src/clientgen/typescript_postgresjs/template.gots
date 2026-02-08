@@ -385,6 +385,12 @@ class InsertBuilder extends QueryBuilder {
     }
     returning(...columns: Array<FColumn<any> | string>) {this._returning.push(...columns); return this; }
 
+    executeReturning(): Promise<any[]> {
+        // Automatically return all columns
+        this._returning.push('*');
+        return this.then();
+    }
+
     toSql(): postgres.PendingQuery<any> {
         let sql = this._table._orm._sql;
 
