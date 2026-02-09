@@ -108,7 +108,7 @@
   - [ ] phone number (custom)
   - [ ] vector (pgvector)
 - [ ] Add constraints
-  - [ ] nullable (default nullable = false)
+  - [X] nullable (default nullable = false)
   - [ ] unique (default unique = false)
 - [ ] Add indexes
 - [ ] Enhance FlexORM Studio with advanced features
